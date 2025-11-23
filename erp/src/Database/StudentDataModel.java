@@ -5,10 +5,8 @@ import Exceptions.InvalidEntityIdentityException;
 import Exceptions.InvalidEntityNameException;
 import Interfaces.IDatabaseModel;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import javax.naming.InvalidNameException;
+import java.sql.*;
 
 public class StudentDataModel extends UserEntity
     implements IDatabaseModel
@@ -19,6 +17,9 @@ public class StudentDataModel extends UserEntity
             throws InvalidEntityIdentityException, InvalidEntityNameException
     { super(entity_id, entity_name); permission = Permission.PERMISSION_STUDENT; }
 
+    public StudentDataModel(String entity_id)
+            throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException
+    { this(entity_id, ""); ReadFromDatabase(); }
 
     @Override
     public void CreateTable() throws SQLException {
@@ -35,7 +36,8 @@ public class StudentDataModel extends UserEntity
 
     @Override
     public void WriteToDatabase() throws SQLException {
-        String sql = "INSERT INTO students(id, name) VALUES (?, ?)";
+        String sql = "INSERT INTO students(id, name) VALUES (?, ?)" +
+                "ON CONFLICT DO UPDATE SET name = excluded.name;";
 
         try (Connection conn = sqliteConnector.connect(database);
              PreparedStatement stmt = conn.prepareStatement(sql);) {
@@ -47,7 +49,22 @@ public class StudentDataModel extends UserEntity
     }
 
     @Override
-    public void ReadFromDatabase() {
+    public void ReadFromDatabase() throws SQLException {
+        String sql = "SELECT id, name FROM students WHERE id = ?";
 
+        try (Connection conn = sqliteConnector.connect(database);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, getId());
+
+            // ResultSet acts as your "Cursor"
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                setId(rs.getString("id"));
+                setName(rs.getString("name"));
+            } else {
+                System.out.println("User not found.");
+            }
+        }
     }
 }

@@ -24,5 +24,5 @@ public interface IDatabaseModel {
      * Populates the object state from the database.
      * Operations should ensure data is [FETCHED] from the storage layer.
      */
-    public void ReadFromDatabase();
+    public void ReadFromDatabase() throws SQLException;
 }

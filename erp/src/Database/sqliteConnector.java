@@ -1,4 +1,4 @@
-package Connection;
+package Database;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -10,10 +10,6 @@ import java.sql.SQLException;
  * to the underlying SQLite storage engine.
  */
 public class sqliteConnector {
-
-    /**
-     * The [STATIC] instance of the active database connection.
-     */
     private static Connection connection = null;
 
     /**
@@ -28,7 +24,6 @@ public class sqliteConnector {
         try {
             if (connection == null || connection.isClosed()) {
                 connection = DriverManager.getConnection(URL);
-                System.out.println("Connected to SQLite.");
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());

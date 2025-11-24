@@ -6,29 +6,28 @@ import Database.sqliteConnector;
 import Exceptions.InvalidEntityIdentityException;
 import Exceptions.InvalidEntityNameException;
 import Interfaces.IDatabaseModel;
-import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Section extends ResourceEntity {
 
     protected final GradingPolicyModel gradingModel;
     protected final GradingSlabs gradingSlabs;
     private final SectionMetadata metadata;
+    private final TimetableModel timetableModel;
 
-    /**
-     * Represents a specific running instance of a Course.
-     * Contains [GRADING POLICY] and [SLABS] specific to this section instance.
-     */
     public Section(String section_id, String section_name, String instructor_id, String semester)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(section_id, section_name);
         this.metadata = new SectionMetadata(instructor_id, semester);
         this.gradingModel = new GradingPolicyModel(15, 10, 25, 25, 15, 10, 5);
         this.gradingSlabs = new GradingSlabs(100, 90, 80, 70, 60, 50, 40, 30, 0);
+        this.timetableModel = new TimetableModel();
     }
 
     public Section(String section_id)
@@ -37,10 +36,106 @@ public class Section extends ResourceEntity {
         metadata     = new SectionMetadata();
         gradingModel = new GradingPolicyModel();
         gradingSlabs = new GradingSlabs();
+        timetableModel = new TimetableModel();
 
         metadata.ReadFromDatabase();
         gradingModel.ReadFromDatabase();
         gradingSlabs.ReadFromDatabase();
+        timetableModel.ReadFromDatabase();
+    }
+
+    public List<TimeSlot> getTimetable() {
+        return timetableModel.slots;
+    }
+
+    public void updateTimetable(List<TimeSlot> newSlots, UserEntity.Permission perm) throws SQLException {
+        if (perm != UserEntity.Permission.PERMISSION_ADMIN) {
+            throw new SecurityException("ACCESS DENIED: Only Administrators can modify Section Timetables.");
+        }
+        this.timetableModel.slots = newSlots;
+        this.timetableModel.WriteToDatabase();
+    }
+
+    public static class TimeSlot {
+        public String day;
+        public String startTime;
+        public int durationMins;
+        public String room;
+
+        public TimeSlot(String day, String startTime, int durationMins, String room) {
+            this.day = day; this.startTime = startTime;
+            this.durationMins = durationMins; this.room = room;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%-10s @ %s (%d mins) in %s", day, startTime, durationMins, room);
+        }
+    }
+
+    private class TimetableModel implements IDatabaseModel {
+        public List<TimeSlot> slots = new ArrayList<>();
+
+        private static final String database = "jdbc:sqlite:timetable.db";
+        private static final String tableSql = "CREATE TABLE IF NOT EXISTS timetable (" +
+                "section_id TEXT, day TEXT, " +
+                "start_time TEXT, duration INTEGER, room TEXT, " +
+                "PRIMARY KEY(section_id, day, start_time)" +
+                ")";
+        private static final String insertSql = "INSERT INTO timetable(section_id, day, start_time, duration, room) " +
+                "VALUES(?, ?, ?, ?, ?) " +
+                "ON CONFLICT(section_id, day, start_time) DO UPDATE SET " +
+                "duration=excluded.duration, room=excluded.room";
+        private static final String deleteSql = "DELETE FROM timetable WHERE section_id = ?";
+        private static final String selectSql = "SELECT day, start_time, duration, room FROM timetable WHERE section_id = ?";
+
+        @Override public void CreateTable() throws SQLException {
+            try(Connection c=sqliteConnector.connect(database);
+                PreparedStatement s=c.prepareStatement(tableSql))
+            {s.executeUpdate();}
+        }
+
+        @Override public void WriteToDatabase() throws SQLException {
+            CreateTable();
+            try(Connection conn = sqliteConnector.connect(database)) {
+                try(PreparedStatement del = conn.prepareStatement(deleteSql)) {
+                    del.setString(1, getId());
+                    del.executeUpdate();
+                }
+                if (!slots.isEmpty()) {
+                    try(PreparedStatement ins = conn.prepareStatement(insertSql)) {
+                        for(TimeSlot slot : slots) {
+                            ins.setString(1, getId()); ins.setString(2, slot.day);
+                            ins.setString(3, slot.startTime); ins.setInt(4, slot.durationMins);
+                            ins.setString(5, slot.room); ins.addBatch();
+                        }
+                        ins.executeBatch();
+                    }
+                }
+            }
+        }
+
+        @Override public void ReadFromDatabase() throws SQLException {
+            slots.clear();
+            try(Connection c=sqliteConnector.connect(database);
+                PreparedStatement s=c.prepareStatement(selectSql)){
+                s.setString(1, getId());
+                ResultSet rs = s.executeQuery();
+                while(rs.next()) {
+                    slots.add(new TimeSlot(
+                            rs.getString("day"), rs.getString("start_time"),
+                            rs.getInt("duration"), rs.getString("room")
+                    ));
+                }
+            }
+        }
+
+        @Override public void DeleteFromTable() throws SQLException {
+            try(Connection c=sqliteConnector.connect(database);
+                PreparedStatement s=c.prepareStatement(deleteSql)){
+                s.setString(1, getId()); s.executeUpdate();
+            }
+        }
     }
 
     public class StudentGradeProxy implements IDatabaseModel {
@@ -83,22 +178,20 @@ public class Section extends ResourceEntity {
         public void setProjects(float v)    { checkWritePermission(); this.projects = v; }
         public void setBonus(float v)       { checkWritePermission(); this.bonus = v; }
 
-        // --- IDatabaseModel IMPLEMENTATION ---
-
         @Override
         public void CreateTable() throws SQLException {
             String sql = "CREATE TABLE IF NOT EXISTS records (" +
-                            "student_id TEXT, " +
-                            "section_id TEXT, " +
-                            "labs FLOAT, " +
-                            "quiz FLOAT, " +
-                            "mid FLOAT, " +
-                            "end FLOAT, " +
-                            "assign FLOAT, " +
-                            "proj FLOAT, " +
-                            "bonus FLOAT, " +
-                        "PRIMARY KEY(student_id, section_id)" +
-                        ")";
+                    "student_id TEXT, " +
+                    "section_id TEXT, " +
+                    "labs FLOAT, " +
+                    "quiz FLOAT, " +
+                    "mid FLOAT, " +
+                    "end FLOAT, " +
+                    "assign FLOAT, " +
+                    "proj FLOAT, " +
+                    "bonus FLOAT, " +
+                    "PRIMARY KEY(student_id, section_id)" +
+                    ")";
             try (Connection conn = sqliteConnector.connect(database);
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.executeUpdate();
@@ -111,10 +204,10 @@ public class Section extends ResourceEntity {
 
             CreateTable();
             String sql = "INSERT INTO records(student_id, section_id, labs, quiz, mid, end, assign, proj, bonus) " +
-                            "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-                            "ON CONFLICT(student_id, section_id) DO UPDATE SET " +
-                        "labs=excluded.labs, quiz=excluded.quiz, mid=excluded.mid, end=excluded.end, " +
-                        "assign=excluded.assign, proj=excluded.proj, bonus=excluded.bonus";
+                    "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                    "ON CONFLICT(student_id, section_id) DO UPDATE SET " +
+                    "labs=excluded.labs, quiz=excluded.quiz, mid=excluded.mid, end=excluded.end, " +
+                    "assign=excluded.assign, proj=excluded.proj, bonus=excluded.bonus";
 
             try (Connection conn = sqliteConnector.connect(database);
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -153,7 +246,7 @@ public class Section extends ResourceEntity {
 
         @Override
         public void DeleteFromTable() throws SQLException {
-            checkWritePermission(); // Security Check
+            checkWritePermission();
 
             String sql = "DELETE FROM records WHERE student_id = ? AND section_id = ?";
             try (Connection conn = sqliteConnector.connect(database);
@@ -180,12 +273,14 @@ public class Section extends ResourceEntity {
         metadata.WriteToDatabase();
         gradingModel.WriteToDatabase();
         gradingSlabs.WriteToDatabase();
+        timetableModel.WriteToDatabase();
     }
     @Override
     public void onPresistenceDelete() throws SQLException {
         metadata.DeleteFromTable();
         gradingModel.DeleteFromTable();
         gradingSlabs.DeleteFromTable();
+        timetableModel.DeleteFromTable();
     }
 
     public class GradingPolicyModel implements IDatabaseModel {
@@ -199,21 +294,21 @@ public class Section extends ResourceEntity {
 
         private static final String database = "jdbc:sqlite:gradings.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS gradings (" +
-                                                    "id TEXT PRIMARY KEY NOT NULL, " +
-                                                    "labs FLOAT, quiz FLOAT, mid_exams FLOAT, end_exams FLOAT, " +
-                                                    "assignments FLOAT, projects FLOAT, bonus FLOAT" +
-                                                ")";
+                "id TEXT PRIMARY KEY NOT NULL, " +
+                "labs FLOAT, quiz FLOAT, mid_exams FLOAT, end_exams FLOAT, " +
+                "assignments FLOAT, projects FLOAT, bonus FLOAT" +
+                ")";
         private static final String insertSql = "INSERT INTO gradings(" +
-                                                    "id, labs, quiz, mid_exams, end_exams, assignments, projects, bonus" +
-                                                ") " +
-                                                "VALUES(?, ?, ?, ?, ?, ?, ?, ?) " +
-                                                "ON CONFLICT(id) DO UPDATE SET " +
-                                                "labs=excluded.labs, quiz=excluded.quiz, " +
-                                                "mid_exams=excluded.mid_exams, " +
-                                                "end_exams=excluded.end_exams, " +
-                                                "assignments=excluded.assignments, " +
-                                                "projects=excluded.projects, " +
-                                                "bonus=excluded.bonus";
+                "id, labs, quiz, mid_exams, end_exams, assignments, projects, bonus" +
+                ") " +
+                "VALUES(?, ?, ?, ?, ?, ?, ?, ?) " +
+                "ON CONFLICT(id) DO UPDATE SET " +
+                "labs=excluded.labs, quiz=excluded.quiz, " +
+                "mid_exams=excluded.mid_exams, " +
+                "end_exams=excluded.end_exams, " +
+                "assignments=excluded.assignments, " +
+                "projects=excluded.projects, " +
+                "bonus=excluded.bonus";
 
         private static final String deleteSql = "DELETE FROM gradings WHERE id = ?";
         private static final String selectSql = "SELECT * FROM gradings WHERE id = ?";
@@ -225,7 +320,7 @@ public class Section extends ResourceEntity {
             this.assignments=a; this.projects=p; this.bonus=b;
         }
 
-        public GradingPolicyModel() {} // Empty constructor for DB load
+        public GradingPolicyModel() {}
 
         @Override public void CreateTable() throws SQLException {
             try (Connection conn = sqliteConnector.connect(database);
@@ -313,15 +408,9 @@ public class Section extends ResourceEntity {
         public GradingSlabs(float o, float a, float a_, float b,
                             float b_, float c, float c_, float d, float f)
         {
-            this.O =o ;
-            this.A =a ;
-            this.A_=a_;
-            this.B =b ;
-            this.B_=b_;
-            this.C =c ;
-            this.C_=c_;
-            this.D =d ;
-            this.F =f ;
+            this.O =o ; this.A =a ; this.A_=a_;
+            this.B =b ; this.B_=b_; this.C =c ;
+            this.C_=c_; this.D =d ; this.F =f ;
         }
 
         public GradingSlabs() {}
@@ -336,14 +425,10 @@ public class Section extends ResourceEntity {
             try (Connection conn = sqliteConnector.connect(database);
                  PreparedStatement stmt = conn.prepareStatement(insertSql)) {
                 stmt.setString(1, getId());
-                stmt.setFloat(2, O );
-                stmt.setFloat(3, A );
-                stmt.setFloat(4, A_);
-                stmt.setFloat(5, B );
-                stmt.setFloat(6, B_);
-                stmt.setFloat(7, C );
-                stmt.setFloat(8, C_);
-                stmt.setFloat(9, D );
+                stmt.setFloat(2, O ); stmt.setFloat(3, A );
+                stmt.setFloat(4, A_); stmt.setFloat(5, B );
+                stmt.setFloat(6, B_); stmt.setFloat(7, C );
+                stmt.setFloat(8, C_); stmt.setFloat(9, D );
                 stmt.setFloat(10,F );
                 stmt.executeUpdate();
             }
@@ -354,14 +439,10 @@ public class Section extends ResourceEntity {
                 stmt.setString(1, getId());
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
-                    O  = rs.getFloat("O" );
-                    A  = rs.getFloat("A" );
-                    A_ = rs.getFloat("A_");
-                    B  = rs.getFloat("B" );
-                    B_ = rs.getFloat("B_");
-                    C  = rs.getFloat("C" );
-                    C_ = rs.getFloat("C_");
-                    D  = rs.getFloat("D" );
+                    O  = rs.getFloat("O" ); A  = rs.getFloat("A" );
+                    A_ = rs.getFloat("A_"); B  = rs.getFloat("B" );
+                    B_ = rs.getFloat("B_"); C  = rs.getFloat("C" );
+                    C_ = rs.getFloat("C_"); D  = rs.getFloat("D" );
                     F  = rs.getFloat("F" );
                 }
             }
@@ -401,12 +482,12 @@ public class Section extends ResourceEntity {
         private static final String database = "jdbc:sqlite:sections.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS sections(" +
                                                     "id TEXT PRIMARY KEY, " +
-                                                    "instructor_id TEXT" +
+                                                    "instructor_id TEXT, " +
                                                     "semester TEXT NOT NULL" +
                                                 ")";
         private static final String insertSql = "INSERT INTO sections(id, instructor_id, semester) VALUES(?, ?, ?) " +
                                                 "ON CONFLICT(id) DO UPDATE SET " +
-                                                "instructor_id=excluded.instructor_id"+
+                                                "instructor_id=excluded.instructor_id, "+
                                                 "semester=excluded.semester";
         private static final String selectSql = "SELECT instructor_id, semester FROM sections WHERE id = ?";
         private static final String deleteSql = "DELETE FROM sections WHERE id = ?";

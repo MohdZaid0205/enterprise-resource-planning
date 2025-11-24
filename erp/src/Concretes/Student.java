@@ -75,6 +75,31 @@ public class Student extends UserEntity {
         enrollmentModel.addCourse(sectionSemester, sectionId);
         onPresistenceSave();
     }
+    public void dropFromCourse(String sectionId) throws SQLException {
+        String foundSemester = null;
+        for (Map.Entry<String, List<String>> entry : enrollmentModel.transcript.entrySet()) {
+            if (entry.getValue().contains(sectionId)) {
+                foundSemester = entry.getKey();
+                break;
+            }
+        }
+
+        if (foundSemester == null) {
+            throw new SQLException("Cannot drop: You are not enrolled in Section " + sectionId);
+        }
+
+        enrollmentModel.transcript.get(foundSemester).remove(sectionId);
+        enrollmentModel.removeSingleEnrollment(foundSemester, sectionId);
+        String deleteGradesSql = "DELETE FROM records WHERE student_id = ? AND section_id = ?";
+        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:academic_records.db");
+             PreparedStatement stmt = conn.prepareStatement(deleteGradesSql)) {
+            stmt.setString(1, getId());
+            stmt.setString(2, sectionId);
+            stmt.executeUpdate();
+        }
+
+        System.out.println("Dropped section " + sectionId + " from " + foundSemester);
+    }
 
     @Override
     public void onPresistenceSave() throws SQLException {
@@ -163,6 +188,17 @@ public class Student extends UserEntity {
                                                 "VALUES(?, ?, ?)";
         private static final String selectSql = "SELECT section_id, semester FROM enrollments WHERE student_id = ?";
         private static final String deleteSql = "DELETE FROM enrollments WHERE student_id = ?";
+
+        public void removeSingleEnrollment(String semester, String sectionId) throws SQLException {
+            String sql = "DELETE FROM enrollments WHERE student_id = ? AND section_id = ? AND semester = ?";
+            try (Connection conn = sqliteConnector.connect(database);
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, getId());
+                stmt.setString(2, sectionId);
+                stmt.setString(3, semester);
+                stmt.executeUpdate();
+            }
+        }
 
         @Override
         public void CreateTable() throws SQLException {

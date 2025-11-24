@@ -45,21 +45,7 @@ public class Student extends UserEntity {
         enrollmentModel.ReadFromDatabase();
     }
 
-
     public String getEnrollmentDate() { return dataModel.enrollmentDate; }
-
-    public void enrollInCourse(String sectionId) throws SQLException {
-        Section section = new Section(sectionId);
-        String sectionSemester = section.getSemester();
-
-        if (sectionSemester == null || sectionSemester.isEmpty()) {
-            throw new SQLException("Cannot enroll: Section " + sectionId + " has no assigned semester.");
-        }
-
-        enrollmentModel.addCourse(sectionSemester, sectionId);
-        onPresistenceSave();
-    }
-
     public List<Section.StudentGradeProxy> getSemesterRecord(String semesterKey) {
         List<Section.StudentGradeProxy> semesterReport = new ArrayList<>();
 
@@ -77,6 +63,17 @@ public class Student extends UserEntity {
             }
         }
         return semesterReport;
+    }
+    public void enrollInCourse(String sectionId) throws SQLException {
+        Section section = new Section(sectionId);
+        String sectionSemester = section.getSemester();
+
+        if (sectionSemester == null || sectionSemester.isEmpty()) {
+            throw new SQLException("Cannot enroll: Section " + sectionId + " has no assigned semester.");
+        }
+
+        enrollmentModel.addCourse(sectionSemester, sectionId);
+        onPresistenceSave();
     }
 
     @Override
@@ -144,8 +141,6 @@ public class Student extends UserEntity {
             {s.setString(1, getId()); s.executeUpdate();}
         }
     }
-
-
     private class EnrollmentModel implements IDatabaseModel {
         public Map<String, List<String>> transcript = new HashMap<>();
 
@@ -207,7 +202,7 @@ public class Student extends UserEntity {
                 }
             }
         }
-        
+
         @Override
         public void DeleteFromTable() throws SQLException {
             try(Connection c=sqliteConnector.connect(database);

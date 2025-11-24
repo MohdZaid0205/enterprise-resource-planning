@@ -11,7 +11,18 @@ import java.sql.*;
 public class StudentDataModel extends UserEntity
     implements IDatabaseModel
 {
-    private static final String database =  "jdbc:sqlite:students.db";
+    private static final String database = "jdbc:sqlite:students.db";
+    private static final String tableSql = "CREATE TABLE IF NOT EXISTS students("+
+                                                    "id TEXT PRIMARY KEY NOT NULL,"+
+                                                    "name TEXT NOT NULL"+
+                                            ")";
+    private static final String insertSql = "INSERT INTO students(id, name) VALUES(?, ?)" +
+                                            "ON CONFLICT DO UPDATE SET name = excluded.name";
+    private static final String deleteSql = "DELETE FROM students WHERE id IN"+
+                                            "(SELECT id FROM students WHERE id=?)";
+    private static final String selectSql = "SELECT id, name FROM students WHERE id = ?";
+
+
 
     public StudentDataModel(String entity_id, String entity_name)
             throws InvalidEntityIdentityException, InvalidEntityNameException
@@ -23,24 +34,17 @@ public class StudentDataModel extends UserEntity
 
     @Override
     public void CreateTable() throws SQLException {
-        String sql = "CREATE TABLE IF NOT EXISTS "  +
-                "students("                         +
-                    "id varchar(255) PRIMARY KEY,"  +
-                    "name varchar(255)"             +
-                ")";
         try (Connection conn = sqliteConnector.connect(database);
-             PreparedStatement stmt = conn.prepareStatement(sql);) {
+             PreparedStatement stmt = conn.prepareStatement(tableSql);) {
             stmt.executeUpdate();
         }
     }
 
     @Override
     public void WriteToDatabase() throws SQLException {
-        String sql = "INSERT INTO students(id, name) VALUES (?, ?)" +
-                "ON CONFLICT DO UPDATE SET name = excluded.name;";
 
         try (Connection conn = sqliteConnector.connect(database);
-             PreparedStatement stmt = conn.prepareStatement(sql);) {
+             PreparedStatement stmt = conn.prepareStatement(insertSql);) {
             stmt.setString(1,getId());
             stmt.setString(2,getName());
 
@@ -50,13 +54,9 @@ public class StudentDataModel extends UserEntity
 
     @Override
     public void ReadFromDatabase() throws SQLException {
-        String sql = "SELECT id, name FROM students WHERE id = ?";
-
         try (Connection conn = sqliteConnector.connect(database);
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(selectSql)) {
             pstmt.setString(1, getId());
-
-            // ResultSet acts as your "Cursor"
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
@@ -65,6 +65,15 @@ public class StudentDataModel extends UserEntity
             } else {
                 System.out.println("User not found.");
             }
+        }
+    }
+
+    @Override
+    public void DeleteFromTable() throws SQLException {
+        try (Connection conn = sqliteConnector.connect(database);
+        PreparedStatement stmt = conn.prepareStatement(deleteSql)) {
+            stmt.setString(1, getId());
+            stmt.executeUpdate();
         }
     }
 }

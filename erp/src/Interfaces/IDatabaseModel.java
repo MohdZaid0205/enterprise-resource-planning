@@ -25,4 +25,10 @@ public interface IDatabaseModel {
      * Operations should ensure data is [FETCHED] from the storage layer.
      */
     public void ReadFromDatabase() throws SQLException;
+
+    /**
+     * Remove an entry from database
+     * Operations should first chack for existence of element first.
+     */
+    public void DeleteFromTable() throws SQLException;
 }

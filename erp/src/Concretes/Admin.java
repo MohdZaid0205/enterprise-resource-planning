@@ -16,6 +16,13 @@ public class Admin extends UserEntity {
 
     private final AdminDataModel dataModel;
 
+    public Admin(String entity_id, String entity_name, String email, String phone_number)
+        throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException{
+        super(entity_id, entity_name,  email, phone_number);
+        this.permission = Permission.PERMISSION_ADMIN;
+        dataModel = new AdminDataModel();
+    }
+
     public Admin(String entity_id, String entity_name)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(entity_id, entity_name);

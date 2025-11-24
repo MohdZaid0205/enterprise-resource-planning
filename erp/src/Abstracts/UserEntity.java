@@ -18,7 +18,11 @@ public abstract class UserEntity extends EntityABC {
 
     public UserEntity(String entity_id, String entity_name)
         throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException
-    { super(entity_id, entity_name); contactInfo = new ContactInformationModel();}
+    { super(entity_id, entity_name); contactInfo = new ContactInformationModel(); }
+
+    public UserEntity(String entity_id, String entity_name, String email, String phone_number)
+            throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException
+    { super(entity_id, entity_name); contactInfo = new ContactInformationModel(email, phone_number); }
 
     public enum Permission {
         PERMISSION_NONE,                // by default any user has no permission, deriving.

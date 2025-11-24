@@ -20,6 +20,16 @@ public class Student extends UserEntity {
     private final StudentDataModel dataModel;
     private final EnrollmentModel enrollmentModel;
 
+    public Student(String entity_id, String entity_name, String enrollmentDate,
+                   String email, String phone_number)
+        throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
+        super(entity_id, entity_name, email, phone_number);
+        this.permission = Permission.PERMISSION_STUDENT;
+
+        dataModel = new StudentDataModel(enrollmentDate);
+        enrollmentModel = new EnrollmentModel();
+    }
+
     public Student(String entity_id, String entity_name, String enrollmentDate)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(entity_id, entity_name);

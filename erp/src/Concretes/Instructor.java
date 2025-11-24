@@ -18,6 +18,14 @@ public class Instructor extends UserEntity {
     private final InstructorDataModel dataModel;
     private final TeachingAssignmentModel assignmentModel;
 
+    public Instructor(String entity_id, String entity_name, String email, String phone_number)
+        throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException{
+        super(entity_id, entity_name,  email, phone_number);
+        this.permission = Permission.PERMISSION_INSTRUCTOR;
+        dataModel = new InstructorDataModel();
+        assignmentModel = new TeachingAssignmentModel();
+    }
+
     public Instructor(String entity_id, String entity_name)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(entity_id, entity_name);

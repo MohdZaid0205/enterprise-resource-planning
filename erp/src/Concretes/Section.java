@@ -1,10 +1,12 @@
 package Concretes;
 
 import Abstracts.ResourceEntity;
+import Abstracts.UserEntity;
 import Database.sqliteConnector;
 import Exceptions.InvalidEntityIdentityException;
 import Exceptions.InvalidEntityNameException;
 import Interfaces.IDatabaseModel;
+import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -29,7 +31,6 @@ public class Section extends ResourceEntity {
         this.gradingSlabs = new GradingSlabs(100, 90, 80, 70, 60, 50, 40, 30, 0);
     }
 
-
     public Section(String section_id)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(section_id, "TempLoad");
@@ -40,6 +41,138 @@ public class Section extends ResourceEntity {
         metadata.ReadFromDatabase();
         gradingModel.ReadFromDatabase();
         gradingSlabs.ReadFromDatabase();
+    }
+
+    public class StudentGradeProxy implements IDatabaseModel {
+        private final String studentId;
+        private final String sectionId;
+        private final UserEntity.Permission perm;
+
+        private float labs, quiz, mid_exams, end_exams, assignments, projects, bonus;
+        private static final String database = "jdbc:sqlite:academic_records.db";
+
+        public StudentGradeProxy(String studentId, String sectionId, UserEntity.Permission perm)
+                throws SQLException {
+            this.studentId = studentId;
+            this.sectionId = sectionId;
+            this.perm = perm;
+            ReadFromDatabase();
+        }
+
+        private void checkWritePermission() {
+            if (perm != UserEntity.Permission.PERMISSION_INSTRUCTOR &&
+                    perm != UserEntity.Permission.PERMISSION_ADMIN &&
+                    perm != UserEntity.Permission.PERMISSION_STUDENT_INSTRUCTOR) {
+                throw new SecurityException("ACCESS DENIED: User does not have permission to modify grades.");
+            }
+        }
+
+        public float getLabs()          { return labs; }
+        public float getQuiz()          { return quiz; }
+        public float getMidExams()      { return mid_exams; }
+        public float getEndExams()      { return end_exams; }
+        public float getAssignments()   { return assignments; }
+        public float getProjects()      { return projects; }
+        public float getBonus()         { return bonus; }
+
+        public void setLabs(float v)        { checkWritePermission(); this.labs = v; }
+        public void setQuiz(float v)        { checkWritePermission(); this.quiz = v; }
+        public void setMidExams(float v)    { checkWritePermission(); this.mid_exams = v; }
+        public void setEndExams(float v)    { checkWritePermission(); this.end_exams = v; }
+        public void setAssignments(float v) { checkWritePermission(); this.assignments = v; }
+        public void setProjects(float v)    { checkWritePermission(); this.projects = v; }
+        public void setBonus(float v)       { checkWritePermission(); this.bonus = v; }
+
+        // --- IDatabaseModel IMPLEMENTATION ---
+
+        @Override
+        public void CreateTable() throws SQLException {
+            String sql = "CREATE TABLE IF NOT EXISTS records (" +
+                            "student_id TEXT, " +
+                            "section_id TEXT, " +
+                            "labs FLOAT, " +
+                            "quiz FLOAT, " +
+                            "mid FLOAT, " +
+                            "end FLOAT, " +
+                            "assign FLOAT, " +
+                            "proj FLOAT, " +
+                            "bonus FLOAT, " +
+                        "PRIMARY KEY(student_id, section_id)" +
+                        ")";
+            try (Connection conn = sqliteConnector.connect(database);
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.executeUpdate();
+            }
+        }
+
+        @Override
+        public void WriteToDatabase() throws SQLException {
+            checkWritePermission();
+
+            CreateTable();
+            String sql = "INSERT INTO records(student_id, section_id, labs, quiz, mid, end, assign, proj, bonus) " +
+                            "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                            "ON CONFLICT(student_id, section_id) DO UPDATE SET " +
+                        "labs=excluded.labs, quiz=excluded.quiz, mid=excluded.mid, end=excluded.end, " +
+                        "assign=excluded.assign, proj=excluded.proj, bonus=excluded.bonus";
+
+            try (Connection conn = sqliteConnector.connect(database);
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, studentId);
+                stmt.setString(2, sectionId);
+                stmt.setFloat(3, labs);
+                stmt.setFloat(4, quiz);
+                stmt.setFloat(5, mid_exams);
+                stmt.setFloat(6, end_exams);
+                stmt.setFloat(7, assignments);
+                stmt.setFloat(8, projects);
+                stmt.setFloat(9, bonus);
+                stmt.executeUpdate();
+            }
+        }
+
+        @Override
+        public void ReadFromDatabase() throws SQLException {
+            String sql = "SELECT * FROM records WHERE student_id = ? AND section_id = ?";
+            try (Connection conn = sqliteConnector.connect(database);
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, studentId);
+                stmt.setString(2, sectionId);
+                ResultSet rs = stmt.executeQuery();
+                if (rs.next()) {
+                    labs        = rs.getFloat("labs");
+                    quiz        = rs.getFloat("quiz");
+                    mid_exams   = rs.getFloat("mid");
+                    end_exams   = rs.getFloat("end");
+                    assignments = rs.getFloat("assign");
+                    projects    = rs.getFloat("proj");
+                    bonus       = rs.getFloat("bonus");
+                }
+            }
+        }
+
+        @Override
+        public void DeleteFromTable() throws SQLException {
+            checkWritePermission(); // Security Check
+
+            String sql = "DELETE FROM records WHERE student_id = ? AND section_id = ?";
+            try (Connection conn = sqliteConnector.connect(database);
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, studentId);
+                stmt.setString(2, sectionId);
+                stmt.executeUpdate();
+            }
+        }
+    }
+
+    public StudentGradeProxy getStudentGradeRecord(String studentId, UserEntity.Permission requestorPermission)
+            throws SQLException {
+        return new StudentGradeProxy(studentId, getId(), requestorPermission);
+    }
+
+    public void setStudentGradeRecord(StudentGradeProxy studentGradeRecord)
+            throws SQLException, SecurityException{
+        studentGradeRecord.WriteToDatabase();
     }
 
     @Override

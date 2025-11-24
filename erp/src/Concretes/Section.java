@@ -27,7 +27,7 @@ public class Section extends ResourceEntity {
         this.metadata = new SectionMetadata(instructor_id, semester);
         this.gradingModel = new GradingPolicyModel(15, 10, 25, 25, 15, 10, 5);
         this.gradingSlabs = new GradingSlabs(100, 90, 80, 70, 60, 50, 40, 30, 0);
-        this.timetableModel = new TimetableModel();
+        this.timetableModel = new TimetableModel(section_id);
     }
 
     public Section(String section_id)
@@ -36,12 +36,11 @@ public class Section extends ResourceEntity {
         metadata     = new SectionMetadata();
         gradingModel = new GradingPolicyModel();
         gradingSlabs = new GradingSlabs();
-        timetableModel = new TimetableModel();
+        timetableModel = new TimetableModel(section_id);
 
         metadata.ReadFromDatabase();
         gradingModel.ReadFromDatabase();
         gradingSlabs.ReadFromDatabase();
-        timetableModel.ReadFromDatabase();
     }
 
     public List<TimeSlot> getTimetable() {
@@ -73,8 +72,9 @@ public class Section extends ResourceEntity {
         }
     }
 
-    private class TimetableModel implements IDatabaseModel {
+    public static class TimetableModel implements IDatabaseModel {
         public List<TimeSlot> slots = new ArrayList<>();
+        private final String sectionId;
 
         private static final String database = "jdbc:sqlite:timetable.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS timetable (" +
@@ -89,6 +89,11 @@ public class Section extends ResourceEntity {
         private static final String deleteSql = "DELETE FROM timetable WHERE section_id = ?";
         private static final String selectSql = "SELECT day, start_time, duration, room FROM timetable WHERE section_id = ?";
 
+        public TimetableModel(String sectionId) throws SQLException {
+            this.sectionId = sectionId;
+            ReadFromDatabase();
+        }
+
         @Override public void CreateTable() throws SQLException {
             try(Connection c=sqliteConnector.connect(database);
                 PreparedStatement s=c.prepareStatement(tableSql))
@@ -99,13 +104,13 @@ public class Section extends ResourceEntity {
             CreateTable();
             try(Connection conn = sqliteConnector.connect(database)) {
                 try(PreparedStatement del = conn.prepareStatement(deleteSql)) {
-                    del.setString(1, getId());
+                    del.setString(1, sectionId);
                     del.executeUpdate();
                 }
                 if (!slots.isEmpty()) {
                     try(PreparedStatement ins = conn.prepareStatement(insertSql)) {
                         for(TimeSlot slot : slots) {
-                            ins.setString(1, getId()); ins.setString(2, slot.day);
+                            ins.setString(1, sectionId); ins.setString(2, slot.day);
                             ins.setString(3, slot.startTime); ins.setInt(4, slot.durationMins);
                             ins.setString(5, slot.room); ins.addBatch();
                         }
@@ -119,7 +124,7 @@ public class Section extends ResourceEntity {
             slots.clear();
             try(Connection c=sqliteConnector.connect(database);
                 PreparedStatement s=c.prepareStatement(selectSql)){
-                s.setString(1, getId());
+                s.setString(1, sectionId);
                 ResultSet rs = s.executeQuery();
                 while(rs.next()) {
                     slots.add(new TimeSlot(
@@ -133,7 +138,7 @@ public class Section extends ResourceEntity {
         @Override public void DeleteFromTable() throws SQLException {
             try(Connection c=sqliteConnector.connect(database);
                 PreparedStatement s=c.prepareStatement(deleteSql)){
-                s.setString(1, getId()); s.executeUpdate();
+                s.setString(1, sectionId); s.executeUpdate();
             }
         }
     }

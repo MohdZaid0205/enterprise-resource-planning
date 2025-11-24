@@ -106,6 +106,7 @@ public abstract class UserEntity extends EntityABC {
     public void setEmail(@NotNull String email) { this.contactInfo.email = email; }
     public void setPhone(@NotNull String phone) { this.contactInfo.phone = phone; }
 
+    // Forces concrete classes (like Section) to handle their own DB logic
     public abstract void onPresistenceSave() throws SQLException;
     public abstract void onPresistenceDelete() throws SQLException;
 

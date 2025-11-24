@@ -78,14 +78,14 @@ public class Section extends ResourceEntity {
 
         private static final String database = "jdbc:sqlite:timetable.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS timetable (" +
-                "section_id TEXT, day TEXT, " +
-                "start_time TEXT, duration INTEGER, room TEXT, " +
-                "PRIMARY KEY(section_id, day, start_time)" +
-                ")";
+                                                    "section_id TEXT, day TEXT, " +
+                                                    "start_time TEXT, duration INTEGER, room TEXT, " +
+                                                    "PRIMARY KEY(section_id, day, start_time)" +
+                                                ")";
         private static final String insertSql = "INSERT INTO timetable(section_id, day, start_time, duration, room) " +
-                "VALUES(?, ?, ?, ?, ?) " +
-                "ON CONFLICT(section_id, day, start_time) DO UPDATE SET " +
-                "duration=excluded.duration, room=excluded.room";
+                                                "VALUES(?, ?, ?, ?, ?) " +
+                                                "ON CONFLICT(section_id, day, start_time) DO UPDATE SET " +
+                                                "duration=excluded.duration, room=excluded.room";
         private static final String deleteSql = "DELETE FROM timetable WHERE section_id = ?";
         private static final String selectSql = "SELECT day, start_time, duration, room FROM timetable WHERE section_id = ?";
 
@@ -181,17 +181,17 @@ public class Section extends ResourceEntity {
         @Override
         public void CreateTable() throws SQLException {
             String sql = "CREATE TABLE IF NOT EXISTS records (" +
-                    "student_id TEXT, " +
-                    "section_id TEXT, " +
-                    "labs FLOAT, " +
-                    "quiz FLOAT, " +
-                    "mid FLOAT, " +
-                    "end FLOAT, " +
-                    "assign FLOAT, " +
-                    "proj FLOAT, " +
-                    "bonus FLOAT, " +
-                    "PRIMARY KEY(student_id, section_id)" +
-                    ")";
+                            "student_id TEXT, " +
+                            "section_id TEXT, " +
+                            "labs FLOAT, " +
+                            "quiz FLOAT, " +
+                            "mid FLOAT, " +
+                            "end FLOAT, " +
+                            "assign FLOAT, " +
+                            "proj FLOAT, " +
+                            "bonus FLOAT, " +
+                            "PRIMARY KEY(student_id, section_id)" +
+                        ")";
             try (Connection conn = sqliteConnector.connect(database);
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.executeUpdate();
@@ -204,10 +204,10 @@ public class Section extends ResourceEntity {
 
             CreateTable();
             String sql = "INSERT INTO records(student_id, section_id, labs, quiz, mid, end, assign, proj, bonus) " +
-                    "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-                    "ON CONFLICT(student_id, section_id) DO UPDATE SET " +
-                    "labs=excluded.labs, quiz=excluded.quiz, mid=excluded.mid, end=excluded.end, " +
-                    "assign=excluded.assign, proj=excluded.proj, bonus=excluded.bonus";
+                            "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                            "ON CONFLICT(student_id, section_id) DO UPDATE SET " +
+                            "labs=excluded.labs, quiz=excluded.quiz, mid=excluded.mid, end=excluded.end, " +
+                            "assign=excluded.assign, proj=excluded.proj, bonus=excluded.bonus";
 
             try (Connection conn = sqliteConnector.connect(database);
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -294,21 +294,21 @@ public class Section extends ResourceEntity {
 
         private static final String database = "jdbc:sqlite:gradings.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS gradings (" +
-                "id TEXT PRIMARY KEY NOT NULL, " +
-                "labs FLOAT, quiz FLOAT, mid_exams FLOAT, end_exams FLOAT, " +
-                "assignments FLOAT, projects FLOAT, bonus FLOAT" +
-                ")";
+                                                    "id TEXT PRIMARY KEY NOT NULL, " +
+                                                    "labs FLOAT, quiz FLOAT, mid_exams FLOAT, end_exams FLOAT, " +
+                                                    "assignments FLOAT, projects FLOAT, bonus FLOAT" +
+                                                ")";
         private static final String insertSql = "INSERT INTO gradings(" +
-                "id, labs, quiz, mid_exams, end_exams, assignments, projects, bonus" +
-                ") " +
-                "VALUES(?, ?, ?, ?, ?, ?, ?, ?) " +
-                "ON CONFLICT(id) DO UPDATE SET " +
-                "labs=excluded.labs, quiz=excluded.quiz, " +
-                "mid_exams=excluded.mid_exams, " +
-                "end_exams=excluded.end_exams, " +
-                "assignments=excluded.assignments, " +
-                "projects=excluded.projects, " +
-                "bonus=excluded.bonus";
+                                                "id, labs, quiz, mid_exams, end_exams, assignments, projects, bonus" +
+                                                ") " +
+                                                "VALUES(?, ?, ?, ?, ?, ?, ?, ?) " +
+                                                "ON CONFLICT(id) DO UPDATE SET " +
+                                                "labs=excluded.labs, quiz=excluded.quiz, " +
+                                                "mid_exams=excluded.mid_exams, " +
+                                                "end_exams=excluded.end_exams, " +
+                                                "assignments=excluded.assignments, " +
+                                                "projects=excluded.projects, " +
+                                                "bonus=excluded.bonus";
 
         private static final String deleteSql = "DELETE FROM gradings WHERE id = ?";
         private static final String selectSql = "SELECT * FROM gradings WHERE id = ?";

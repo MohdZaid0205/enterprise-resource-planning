@@ -21,10 +21,10 @@ public class Section extends ResourceEntity {
      * Represents a specific running instance of a Course.
      * Contains [GRADING POLICY] and [SLABS] specific to this section instance.
      */
-    public Section(String section_id, String section_name, String instructor_id)
+    public Section(String section_id, String section_name, String instructor_id, String semester)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(section_id, section_name);
-        this.metadata = new SectionMetadata(instructor_id);
+        this.metadata = new SectionMetadata(instructor_id, semester);
         this.gradingModel = new GradingPolicyModel(15, 10, 25, 25, 15, 10, 5);
         this.gradingSlabs = new GradingSlabs(100, 90, 80, 70, 60, 50, 40, 30, 0);
     }
@@ -263,19 +263,23 @@ public class Section extends ResourceEntity {
 
     private class SectionMetadata implements IDatabaseModel {
         public String instructor_id;
+        public String semester;
 
         private static final String database = "jdbc:sqlite:sections.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS sections(" +
                                                     "id TEXT PRIMARY KEY, " +
                                                     "instructor_id TEXT" +
+                                                    "semester TEXT NOT NULL" +
                                                 ")";
-        private static final String insertSql = "INSERT INTO sections(id, instructor_id) VALUES(?, ?) " +
+        private static final String insertSql = "INSERT INTO sections(id, instructor_id, semester) VALUES(?, ?, ?) " +
                                                 "ON CONFLICT(id) DO UPDATE SET " +
-                                                "instructor_id=excluded.instructor_id";
-        private static final String selectSql = "SELECT instructor_id FROM sections WHERE id = ?";
+                                                "instructor_id=excluded.instructor_id"+
+                                                "semester=excluded.semester";
+        private static final String selectSql = "SELECT instructor_id, semester FROM sections WHERE id = ?";
         private static final String deleteSql = "DELETE FROM sections WHERE id = ?";
 
-        public SectionMetadata(String instructor_id) { this.instructor_id = instructor_id; }
+        public SectionMetadata(String instructor_id, String semester)
+        { this.instructor_id = instructor_id; this.semester = semester; }
         public SectionMetadata() {}
 
         @Override public void CreateTable() throws SQLException {
@@ -289,6 +293,7 @@ public class Section extends ResourceEntity {
                  PreparedStatement stmt = conn.prepareStatement(insertSql)) {
                 stmt.setString(1, getId());
                 stmt.setString(2, instructor_id);
+                stmt.setString(3, semester);
                 stmt.executeUpdate();
             }
         }
@@ -297,8 +302,10 @@ public class Section extends ResourceEntity {
                  PreparedStatement stmt = conn.prepareStatement(selectSql)) {
                 stmt.setString(1, getId());
                 ResultSet rs = stmt.executeQuery();
-                if (rs.next())
+                if (rs.next()){
                     this.instructor_id = rs.getString("instructor_id");
+                    this.semester = rs.getString("semester");
+                }
             }
         }
         @Override public void DeleteFromTable() throws SQLException {
@@ -311,5 +318,8 @@ public class Section extends ResourceEntity {
     }
 
     public String getInstructorId() { return metadata.instructor_id; }
+    public String getSemester() { return metadata.semester; }
+
     public void setInstructorId(String instructor_id) { metadata.instructor_id = instructor_id; }
+    public void setSemester(String semester) { metadata.semester = semester; }
 }

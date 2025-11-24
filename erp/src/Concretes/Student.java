@@ -20,10 +20,6 @@ public class Student extends UserEntity {
     private final StudentDataModel dataModel;
     private final EnrollmentModel enrollmentModel;
 
-    /**
-     * CONSTRUCTOR FOR NEW STUDENT
-     * @param enrollmentDate Date string (e.g., "2025-08-01") or Batch ID.
-     */
     public Student(String entity_id, String entity_name, String enrollmentDate)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(entity_id, entity_name);
@@ -46,9 +42,9 @@ public class Student extends UserEntity {
     }
 
     public String getEnrollmentDate() { return dataModel.enrollmentDate; }
+
     public List<Section.StudentGradeProxy> getSemesterRecord(String semesterKey) {
         List<Section.StudentGradeProxy> semesterReport = new ArrayList<>();
-
         List<String> sectionIds = enrollmentModel.getSectionsForSemester(semesterKey);
 
         if (sectionIds != null) {
@@ -64,6 +60,26 @@ public class Student extends UserEntity {
         }
         return semesterReport;
     }
+
+    public Map<String, List<Section.TimeSlot>> getWeeklySchedule(String semester) {
+        Map<String, List<Section.TimeSlot>> schedule = new HashMap<>();
+        List<String> enrolledSections = enrollmentModel.getSectionsForSemester(semester);
+
+        if (enrolledSections != null) {
+            for (String sectionId : enrolledSections) {
+                try {
+                    Section.TimetableModel timetable = new Section.TimetableModel(sectionId);
+                    if (!timetable.slots.isEmpty()) {
+                        schedule.put(sectionId, timetable.slots);
+                    }
+                } catch (Exception e) {
+                    // ignore
+                }
+            }
+        }
+        return schedule;
+    }
+
     public void enrollInCourse(String sectionId) throws SQLException {
         Section section = new Section(sectionId);
         String sectionSemester = section.getSemester();
@@ -75,6 +91,7 @@ public class Student extends UserEntity {
         enrollmentModel.addCourse(sectionSemester, sectionId);
         onPresistenceSave();
     }
+
     public void dropFromCourse(String sectionId) throws SQLException {
         String foundSemester = null;
         for (Map.Entry<String, List<String>> entry : enrollmentModel.transcript.entrySet()) {
@@ -166,6 +183,7 @@ public class Student extends UserEntity {
             {s.setString(1, getId()); s.executeUpdate();}
         }
     }
+
     private class EnrollmentModel implements IDatabaseModel {
         public Map<String, List<String>> transcript = new HashMap<>();
 
@@ -184,8 +202,10 @@ public class Student extends UserEntity {
                                                     "semester TEXT, " +
                                                 "PRIMARY KEY(student_id, section_id)" +
                                                 ")";
-        private static final String insertSql = "INSERT OR IGNORE INTO enrollments(student_id, section_id, semester) " +
-                                                "VALUES(?, ?, ?)";
+        private static final String insertSql = "INSERT INTO enrollments(student_id, section_id, semester) " +
+                                                "VALUES(?, ?, ?) " +
+                                                "ON CONFLICT(student_id, section_id) DO UPDATE SET " +
+                                                "semester = excluded.semester";
         private static final String selectSql = "SELECT section_id, semester FROM enrollments WHERE student_id = ?";
         private static final String deleteSql = "DELETE FROM enrollments WHERE student_id = ?";
 

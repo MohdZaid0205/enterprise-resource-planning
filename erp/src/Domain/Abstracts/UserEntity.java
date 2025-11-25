@@ -6,6 +6,9 @@ import Domain.Exceptions.InvalidEntityNameException;
 import Domain.Interfaces.IDatabaseModel;
 import org.jetbrains.annotations.NotNull;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.Security;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -18,11 +21,15 @@ public abstract class UserEntity extends EntityABC {
 
     public UserEntity(String entity_id, String entity_name)
         throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException
-    { super(entity_id, entity_name); contactInfo = new ContactInformationModel(); }
+    { super(entity_id, entity_name); contactInfo = new ContactInformationModel(); security= new SecurityModel(); }
 
-    public UserEntity(String entity_id, String entity_name, String email, String phone_number)
+    public UserEntity(String entity_id, String entity_name, String email, String phone_number, String password)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException
-    { super(entity_id, entity_name); contactInfo = new ContactInformationModel(email, phone_number); }
+    {
+        super(entity_id, entity_name);
+        contactInfo = new ContactInformationModel(email, phone_number);
+        security = new SecurityModel(password);
+    }
 
     public enum Permission {
         PERMISSION_NONE,                // by default any user has no permission, deriving.
@@ -104,6 +111,113 @@ public abstract class UserEntity extends EntityABC {
                 stmt.executeUpdate();
             }
         }
+    }
+
+    protected final SecurityModel security;
+    protected class SecurityModel implements IDatabaseModel {
+        public String password = hash("password");
+
+        private static final String database = "jdbc:sqlite:credentials.db";
+        private static final String tableSql = "CREATE TABLE IF NOT EXISTS credentials(" +
+                                                    "id TEXT PRIMARY KEY, password TEXT" +
+                                                ")";
+        private static final String insertSql = "INSERT INTO credentials(id, password) VALUES(?, ?) " +
+                                                "ON CONFLICT(id) DO UPDATE SET password=excluded.password";
+        private static final String selectSql = "SELECT password FROM credentials WHERE id = ?";
+        private static final String deleteSql = "DELETE FROM credentials WHERE id = ?";
+
+        public SecurityModel(String password) throws SQLException { password = hash(password); }
+        public SecurityModel() throws SQLException { ReadFromDatabase(); }
+
+        public boolean checkPassword(String input) {
+            String inputHash = hash(input);
+            return password != null && password.equals(inputHash);
+        }
+
+        public void updatePassword(String rawPassword) throws SQLException {
+            this.password = hash(rawPassword);
+            WriteToDatabase();
+        }
+
+        private String hash(String raw) {
+            if (raw == null) return null;
+            try {
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                byte[] encodedhash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
+                StringBuilder hexString = new StringBuilder(2 * encodedhash.length);
+                for (int i = 0; i < encodedhash.length; i++) {
+                    String hex = Integer.toHexString(0xff & encodedhash[i]);
+                    if(hex.length() == 1) {
+                        hexString.append('0');
+                    }
+                    hexString.append(hex);
+                }
+                return hexString.toString();
+            } catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+
+        @Override public void CreateTable()
+                throws SQLException
+        {
+            try(Connection c=sqliteConnector.connect(database);
+                PreparedStatement s=c.prepareStatement(tableSql))
+            {s.executeUpdate();}
+        }
+        @Override public void WriteToDatabase()
+                throws SQLException
+        {
+            CreateTable();
+            try(Connection c=sqliteConnector.connect(database);
+                PreparedStatement s=c.prepareStatement(insertSql))
+            {
+                s.setString(1,getId());
+                s.setString(2,password);
+                s.executeUpdate();
+            }
+        }
+        @Override public void ReadFromDatabase()
+                throws SQLException
+        {
+            CreateTable();
+            try(Connection c=sqliteConnector.connect(database);
+                PreparedStatement s=c.prepareStatement(selectSql))
+            {
+                s.setString(1,getId());
+                ResultSet rs=s.executeQuery();
+                if(rs.next()){
+                    password=rs.getString("password");
+                }
+            }
+        }
+        @Override public void DeleteFromTable()
+                throws SQLException
+        {
+            try(Connection c=sqliteConnector.connect(database);
+                PreparedStatement s=c.prepareStatement(deleteSql))
+            {
+                s.setString(1,getId());
+                s.executeUpdate();
+            }
+        }
+    }
+
+    public boolean authenticate(String inputPassword) {
+        return security.checkPassword(inputPassword);
+    }
+
+    public void setPassword(String newPassword) throws SQLException {
+        security.updatePassword(newPassword);
+    }
+
+    public boolean resetPassword(String email, String phone, String newPassword) throws SQLException {
+        if (contactInfo.email.equalsIgnoreCase(email) && contactInfo.phone.equals(phone)) {
+            setPassword(newPassword);
+            return true;
+        }
+        return false;
     }
 
     public String getEmail() { return contactInfo.email; }

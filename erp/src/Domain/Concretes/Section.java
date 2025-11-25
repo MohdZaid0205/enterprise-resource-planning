@@ -490,14 +490,16 @@ public class Section extends ResourceEntity {
         private static final String database = "jdbc:sqlite:sections.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS sections(" +
                                                     "id TEXT PRIMARY KEY, " +
+                                                    "name TEXT NOT NULL, " +
                                                     "instructor_id TEXT, " +
                                                     "semester TEXT NOT NULL" +
                                                 ")";
-        private static final String insertSql = "INSERT INTO sections(id, instructor_id, semester) VALUES(?, ?, ?) " +
+        private static final String insertSql = "INSERT INTO sections(id, name, instructor_id, semester) VALUES(?, ?, ?, ?) " +
                                                 "ON CONFLICT(id) DO UPDATE SET " +
+                                                "name=excluded.name,"+
                                                 "instructor_id=excluded.instructor_id, "+
                                                 "semester=excluded.semester";
-        private static final String selectSql = "SELECT instructor_id, semester FROM sections WHERE id = ?";
+        private static final String selectSql = "SELECT name, instructor_id, semester FROM sections WHERE id = ?";
         private static final String deleteSql = "DELETE FROM sections WHERE id = ?";
 
         public SectionMetadata(String instructor_id, String semester)
@@ -514,8 +516,9 @@ public class Section extends ResourceEntity {
             try (Connection conn = sqliteConnector.connect(database);
                  PreparedStatement stmt = conn.prepareStatement(insertSql)) {
                 stmt.setString(1, getId());
-                stmt.setString(2, instructor_id);
-                stmt.setString(3, semester);
+                stmt.setString(2, getName());
+                stmt.setString(3, instructor_id);
+                stmt.setString(4, semester);
                 stmt.executeUpdate();
             }
         }
@@ -525,6 +528,7 @@ public class Section extends ResourceEntity {
                 stmt.setString(1, getId());
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()){
+                    setName(rs.getString("name"));
                     this.instructor_id = rs.getString("instructor_id");
                     this.semester = rs.getString("semester");
                 }

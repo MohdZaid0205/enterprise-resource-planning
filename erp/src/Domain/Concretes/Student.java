@@ -21,9 +21,9 @@ public class Student extends Domain.Abstracts.UserEntity {
     private final EnrollmentModel enrollmentModel;
 
     public Student(String entity_id, String entity_name, String enrollmentDate,
-                   String email, String phone_number)
+                   String email, String phone_number, String password)
         throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
-        super(entity_id, entity_name, email, phone_number);
+        super(entity_id, entity_name, email, phone_number, password);
         this.permission = UserEntity.Permission.PERMISSION_STUDENT;
 
         dataModel = new StudentDataModel(enrollmentDate);

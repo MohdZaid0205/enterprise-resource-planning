@@ -17,9 +17,9 @@ public class Admin extends Domain.Abstracts.UserEntity {
 
     private final AdminDataModel dataModel;
 
-    public Admin(String entity_id, String entity_name, String email, String phone_number)
+    public Admin(String entity_id, String entity_name, String email, String phone_number, String password)
         throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException{
-        super(entity_id, entity_name,  email, phone_number);
+        super(entity_id, entity_name,  email, phone_number, password);
         this.permission = UserEntity.Permission.PERMISSION_ADMIN;
         dataModel = new AdminDataModel();
     }

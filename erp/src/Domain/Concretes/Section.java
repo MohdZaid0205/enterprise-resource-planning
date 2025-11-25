@@ -21,11 +21,11 @@ public class Section extends ResourceEntity {
     private final SectionMetadata metadata;
     private final TimetableModel timetableModel;
 
-    public Section(String section_id, String section_name, String instructor_id,
+    public Section(String section_id, String section_name, String course_id, String instructor_id,
                    String semester, int capacity, int contains)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(section_id, section_name);
-        this.metadata = new SectionMetadata(instructor_id, semester, capacity, contains);
+        this.metadata = new SectionMetadata(course_id, instructor_id, semester, capacity, contains);
         this.gradingModel = new GradingPolicyModel(15, 10, 25, 25, 15, 10, 5);
         this.gradingSlabs = new GradingSlabs(100, 90, 80, 70, 60, 50, 40, 30, 0);
         this.timetableModel = new TimetableModel(section_id);
@@ -34,7 +34,7 @@ public class Section extends ResourceEntity {
     public Section(String section_id)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(section_id, "TempLoad");
-        metadata     = new SectionMetadata();
+        metadata = new SectionMetadata();
         gradingModel = new GradingPolicyModel();
         gradingSlabs = new GradingSlabs();
         timetableModel = new TimetableModel(section_id);
@@ -66,7 +66,6 @@ public class Section extends ResourceEntity {
             this.day = day; this.startTime = startTime;
             this.durationMins = durationMins; this.room = room;
         }
-
         @Override
         public String toString() {
             return String.format("%-10s @ %s (%d mins) in %s", day, startTime, durationMins, room);
@@ -121,7 +120,6 @@ public class Section extends ResourceEntity {
                 }
             }
         }
-
         @Override public void ReadFromDatabase() throws SQLException {
             slots.clear();
             try(Connection c=sqliteConnector.connect(database);
@@ -136,7 +134,6 @@ public class Section extends ResourceEntity {
                 }
             }
         }
-
         @Override public void DeleteFromTable() throws SQLException {
             try(Connection c=sqliteConnector.connect(database);
                 PreparedStatement s=c.prepareStatement(deleteSql)){
@@ -485,6 +482,7 @@ public class Section extends ResourceEntity {
     public void setF (float f) {gradingSlabs.F  = f;}
 
     private class SectionMetadata implements IDatabaseModel {
+        public String course_id;
         public String instructor_id;
         public String semester;
         public int capacity;
@@ -494,51 +492,48 @@ public class Section extends ResourceEntity {
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS sections(" +
                                                     "id TEXT PRIMARY KEY, " +
                                                     "name TEXT NOT NULL, " +
+                                                    "course_id TEXT, " +
                                                     "instructor_id TEXT, " +
-                                                    "semester TEXT NOT NULL," +
-                                                    "capacity INTEGER NOT NULL," +
-                                                    "contains INTEGER NOT NULL" +
-                                                ")";
-        private static final String insertSql = "INSERT INTO sections(id, name, instructor_id, semester, capacity, contains) " +
-                                                "VALUES(?, ?, ?, ?, ?, ?) " +
-                                                "ON CONFLICT(id) DO UPDATE SET " +
-                                                "name=excluded.name,"+
-                                                "instructor_id=excluded.instructor_id, "+
+                                                    "semester TEXT NOT NULL, " +
+                                                    "capacity INTEGER NOT NULL, " +
+                                                    "contains INTEGER NOT NULL)";
+
+        private static final String insertSql = "INSERT INTO sections(id, name, course_id, instructor_id, semester, capacity, contains) " +
+                                                "VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET " +
+                                                "name=excluded.name, " +
+                                                "course_id=excluded.course_id, " +
+                                                "instructor_id=excluded.instructor_id, " +
                                                 "semester=excluded.semester, " +
                                                 "capacity=excluded.capacity, " +
-                                                "contains=excluded.contains ";
-        private static final String selectSql = "SELECT name, instructor_id, semester, capacity, contains FROM sections WHERE id = ?";
+                                                "contains=excluded.contains";
+
+        private static final String selectSql = "SELECT name, course_id, instructor_id, semester, capacity, contains FROM sections WHERE id = ?";
         private static final String deleteSql = "DELETE FROM sections WHERE id = ?";
 
-        public SectionMetadata(String instructor_id, String semester, int capacity, int contains)
-        { this.instructor_id = instructor_id; this.semester = semester; this.capacity = capacity; this.contains = contains; }
+        public SectionMetadata(String course_id, String instructor_id, String semester, int capacity, int contains) {
+            this.course_id = course_id; this.instructor_id = instructor_id; this.semester = semester; this.capacity = capacity; this.contains = contains;
+        }
         public SectionMetadata() throws SQLException { ReadFromDatabase(); }
 
-        @Override public void CreateTable() throws SQLException {
-            try (Connection conn = sqliteConnector.connect(database);
-                 PreparedStatement stmt = conn.prepareStatement(tableSql))
-            { stmt.executeUpdate(); }
+        @Override public void CreateTable() throws SQLException
+        {
+            try(Connection c=sqliteConnector.connect(database);
+                PreparedStatement s=c.prepareStatement(tableSql))
+            {s.executeUpdate();}
         }
         @Override public void WriteToDatabase() throws SQLException {
             CreateTable();
-            try (Connection conn = sqliteConnector.connect(database);
-                 PreparedStatement stmt = conn.prepareStatement(insertSql)) {
-                stmt.setString(1, getId());
-                stmt.setString(2, getName());
-                stmt.setString(3, instructor_id);
-                stmt.setString(4, semester);
-                stmt.setInt(5, capacity);
-                stmt.setInt(6, contains);
-                stmt.executeUpdate();
+            try(Connection c=sqliteConnector.connect(database); PreparedStatement s=c.prepareStatement(insertSql)){
+                s.setString(1, getId()); s.setString(2, getName()); s.setString(3, course_id); // Insert course_id
+                s.setString(4, instructor_id); s.setString(5, semester); s.setInt(6, capacity); s.setInt(7, contains); s.executeUpdate();
             }
         }
         @Override public void ReadFromDatabase() throws SQLException {
-            try (Connection conn = sqliteConnector.connect(database);
-                 PreparedStatement stmt = conn.prepareStatement(selectSql)) {
-                stmt.setString(1, getId());
-                ResultSet rs = stmt.executeQuery();
+            try(Connection c=sqliteConnector.connect(database); PreparedStatement s=c.prepareStatement(selectSql)){
+                s.setString(1, getId()); ResultSet rs = s.executeQuery();
                 if (rs.next()){
                     setName(rs.getString("name"));
+                    this.course_id = rs.getString("course_id"); // Read course_id
                     this.instructor_id = rs.getString("instructor_id");
                     this.semester = rs.getString("semester");
                     this.capacity = rs.getInt("capacity");
@@ -546,15 +541,10 @@ public class Section extends ResourceEntity {
                 }
             }
         }
-        @Override public void DeleteFromTable() throws SQLException {
-            try (Connection conn = sqliteConnector.connect(database);
-                 PreparedStatement stmt = conn.prepareStatement(deleteSql)) {
-                stmt.setString(1, getId());
-                stmt.executeUpdate();
-            }
-        }
+        @Override public void DeleteFromTable() throws SQLException { try(Connection c=sqliteConnector.connect(database); PreparedStatement s=c.prepareStatement(deleteSql)){s.setString(1, getId()); s.executeUpdate();} }
     }
 
+    public String getCourseId() { return metadata.course_id; }
     public String getInstructorId() { return metadata.instructor_id; }
     public String getSemester() { return metadata.semester; }
     public int getCapacity() { return metadata.capacity; }

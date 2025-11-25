@@ -102,7 +102,8 @@ public class Student extends Domain.Abstracts.UserEntity {
             throw new SQLException("Cannot enroll: Section " + sectionId + " is at maximum capacity.");
         }
 
-        section.setCapacity(section.getContains() + 1);
+        section.setContains(section.getContains() + 1);
+        section.onPresistenceSave();
         enrollmentModel.addCourse(sectionSemester, sectionId);
         onPresistenceSave();
     }
@@ -132,6 +133,7 @@ public class Student extends Domain.Abstracts.UserEntity {
 
         Section section = new Section(sectionId);
         section.setContains(section.getContains() - 1);
+        section.onPresistenceSave();
 
         System.out.println("Dropped section " + sectionId + " from " + foundSemester);
     }

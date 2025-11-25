@@ -116,22 +116,30 @@ public abstract class UserEntity extends EntityABC {
     protected final SecurityModel security;
     protected class SecurityModel implements IDatabaseModel {
         public String password = hash("password");
+        public String permissionLevel = Permission.PERMISSION_NONE.name();
 
         private static final String database = "jdbc:sqlite:credentials.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS credentials(" +
-                                                    "id TEXT PRIMARY KEY, password TEXT" +
+                                                    "id TEXT PRIMARY KEY, " +
+                                                    "password TEXT, " +
+                                                    "permission_level TEXT" +
                                                 ")";
-        private static final String insertSql = "INSERT INTO credentials(id, password) VALUES(?, ?) " +
-                                                "ON CONFLICT(id) DO UPDATE SET password=excluded.password";
-        private static final String selectSql = "SELECT password FROM credentials WHERE id = ?";
+        private static final String insertSql = "INSERT INTO credentials(id, password, permission_level) VALUES(?, ?, ?) " +
+                                                "ON CONFLICT(id) DO UPDATE SET " +
+                                                "password=excluded.password, " +
+                                                "permission_level=excluded.permission_level";
+        private static final String selectSql = "SELECT password, permission_level FROM credentials WHERE id = ?";
         private static final String deleteSql = "DELETE FROM credentials WHERE id = ?";
 
         public SecurityModel(String password) throws SQLException { password = hash(password); }
         public SecurityModel() throws SQLException { ReadFromDatabase(); }
 
-        public boolean checkPassword(String input) {
-            String inputHash = hash(input);
-            return password != null && password.equals(inputHash);
+        public boolean checkCredentials(String inputPass, String expectedPermission) {
+            String inputHash = hash(inputPass);
+            boolean passMatch = password != null && password.equals(inputHash);
+            boolean permMatch = permissionLevel != null && permissionLevel.equals(expectedPermission);
+
+            return passMatch && permMatch;
         }
 
         public void updatePassword(String rawPassword) throws SQLException {
@@ -175,6 +183,8 @@ public abstract class UserEntity extends EntityABC {
             {
                 s.setString(1,getId());
                 s.setString(2,password);
+                this.permissionLevel = UserEntity.this.permission.name();
+                s.setString(3,this.permissionLevel);
                 s.executeUpdate();
             }
         }
@@ -189,6 +199,7 @@ public abstract class UserEntity extends EntityABC {
                 ResultSet rs=s.executeQuery();
                 if(rs.next()){
                     password=rs.getString("password");
+                    permissionLevel = rs.getString("permission_level");
                 }
             }
         }
@@ -205,7 +216,7 @@ public abstract class UserEntity extends EntityABC {
     }
 
     public boolean authenticate(String inputPassword) {
-        return security.checkPassword(inputPassword);
+        return security.checkCredentials(inputPassword, this.permission.name());
     }
 
     public void setPassword(String newPassword) throws SQLException {

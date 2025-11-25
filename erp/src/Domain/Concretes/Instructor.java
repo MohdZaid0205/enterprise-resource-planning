@@ -99,11 +99,13 @@ public class Instructor extends Domain.Abstracts.UserEntity {
         dataModel.WriteToDatabase();
         contactInfo.WriteToDatabase();
         assignmentModel.WriteToDatabase();
+        security.WriteToDatabase();
     }
     @Override public void onPresistenceDelete() throws SQLException {
         dataModel.DeleteFromTable();
         contactInfo.DeleteFromTable();
         assignmentModel.DeleteFromTable();
+        security.DeleteFromTable();
     }
 
     public class CourseStatsModel {

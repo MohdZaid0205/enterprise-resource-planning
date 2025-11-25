@@ -72,12 +72,14 @@ public class Admin extends Domain.Abstracts.UserEntity {
     public void onPresistenceSave() throws SQLException {
         dataModel.WriteToDatabase();
         contactInfo.WriteToDatabase();
+        security.WriteToDatabase();
     }
 
     @Override
     public void onPresistenceDelete() throws SQLException {
         dataModel.DeleteFromTable();
         contactInfo.DeleteFromTable();
+        security.DeleteFromTable();
     }
 
     private class AdminDataModel implements IDatabaseModel {

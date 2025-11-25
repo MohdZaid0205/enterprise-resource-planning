@@ -21,10 +21,11 @@ public class Section extends ResourceEntity {
     private final SectionMetadata metadata;
     private final TimetableModel timetableModel;
 
-    public Section(String section_id, String section_name, String instructor_id, String semester)
+    public Section(String section_id, String section_name, String instructor_id,
+                   String semester, int capacity, int contains)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(section_id, section_name);
-        this.metadata = new SectionMetadata(instructor_id, semester);
+        this.metadata = new SectionMetadata(instructor_id, semester, capacity, contains);
         this.gradingModel = new GradingPolicyModel(15, 10, 25, 25, 15, 10, 5);
         this.gradingSlabs = new GradingSlabs(100, 90, 80, 70, 60, 50, 40, 30, 0);
         this.timetableModel = new TimetableModel(section_id);
@@ -486,25 +487,32 @@ public class Section extends ResourceEntity {
     private class SectionMetadata implements IDatabaseModel {
         public String instructor_id;
         public String semester;
+        public int capacity;
+        public int contains;
 
         private static final String database = "jdbc:sqlite:sections.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS sections(" +
                                                     "id TEXT PRIMARY KEY, " +
                                                     "name TEXT NOT NULL, " +
                                                     "instructor_id TEXT, " +
-                                                    "semester TEXT NOT NULL" +
+                                                    "semester TEXT NOT NULL," +
+                                                    "capacity INTEGER NOT NULL," +
+                                                    "contains INTEGER NOT NULL" +
                                                 ")";
-        private static final String insertSql = "INSERT INTO sections(id, name, instructor_id, semester) VALUES(?, ?, ?, ?) " +
+        private static final String insertSql = "INSERT INTO sections(id, name, instructor_id, semester, capacity, contains) " +
+                                                "VALUES(?, ?, ?, ?, ?, ?) " +
                                                 "ON CONFLICT(id) DO UPDATE SET " +
                                                 "name=excluded.name,"+
                                                 "instructor_id=excluded.instructor_id, "+
-                                                "semester=excluded.semester";
-        private static final String selectSql = "SELECT name, instructor_id, semester FROM sections WHERE id = ?";
+                                                "semester=excluded.semester, " +
+                                                "capacity=excluded.capacity, " +
+                                                "contains=excluded.contains ";
+        private static final String selectSql = "SELECT name, instructor_id, semester, capacity, contains FROM sections WHERE id = ?";
         private static final String deleteSql = "DELETE FROM sections WHERE id = ?";
 
-        public SectionMetadata(String instructor_id, String semester)
-        { this.instructor_id = instructor_id; this.semester = semester; }
-        public SectionMetadata() {}
+        public SectionMetadata(String instructor_id, String semester, int capacity, int contains)
+        { this.instructor_id = instructor_id; this.semester = semester; this.capacity = capacity; this.contains = contains; }
+        public SectionMetadata() throws SQLException { ReadFromDatabase(); }
 
         @Override public void CreateTable() throws SQLException {
             try (Connection conn = sqliteConnector.connect(database);
@@ -519,6 +527,8 @@ public class Section extends ResourceEntity {
                 stmt.setString(2, getName());
                 stmt.setString(3, instructor_id);
                 stmt.setString(4, semester);
+                stmt.setInt(5, capacity);
+                stmt.setInt(6, contains);
                 stmt.executeUpdate();
             }
         }
@@ -531,6 +541,8 @@ public class Section extends ResourceEntity {
                     setName(rs.getString("name"));
                     this.instructor_id = rs.getString("instructor_id");
                     this.semester = rs.getString("semester");
+                    this.capacity = rs.getInt("capacity");
+                    this.contains = rs.getInt("contains");
                 }
             }
         }
@@ -545,7 +557,11 @@ public class Section extends ResourceEntity {
 
     public String getInstructorId() { return metadata.instructor_id; }
     public String getSemester() { return metadata.semester; }
+    public int getCapacity() { return metadata.capacity; }
+    public int getContains() { return metadata.contains; }
 
     public void setInstructorId(String instructor_id) { metadata.instructor_id = instructor_id; }
     public void setSemester(String semester) { metadata.semester = semester; }
+    public void setCapacity(int capacity) { metadata.capacity = capacity; }
+    public void setContains(int contains) { metadata.contains = contains; }
 }

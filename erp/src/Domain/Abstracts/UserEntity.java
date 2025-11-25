@@ -131,7 +131,7 @@ public abstract class UserEntity extends EntityABC {
         private static final String selectSql = "SELECT password, permission_level FROM credentials WHERE id = ?";
         private static final String deleteSql = "DELETE FROM credentials WHERE id = ?";
 
-        public SecurityModel(String password) throws SQLException { password = hash(password); }
+        public SecurityModel(String pass) throws SQLException { password = hash(pass); }
         public SecurityModel() throws SQLException { ReadFromDatabase(); }
 
         public boolean checkCredentials(String inputPass, String expectedPermission) {

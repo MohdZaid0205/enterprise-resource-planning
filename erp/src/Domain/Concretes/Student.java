@@ -98,6 +98,11 @@ public class Student extends Domain.Abstracts.UserEntity {
             throw new SQLException("Cannot enroll: Section " + sectionId + " has no assigned semester.");
         }
 
+        if (section.getCapacity() == section.getContains()){
+            throw new SQLException("Cannot enroll: Section " + sectionId + " is at maximum capacity.");
+        }
+
+        section.setCapacity(section.getContains() + 1);
         enrollmentModel.addCourse(sectionSemester, sectionId);
         onPresistenceSave();
     }
@@ -125,6 +130,9 @@ public class Student extends Domain.Abstracts.UserEntity {
             stmt.executeUpdate();
         }
 
+        Section section = new Section(sectionId);
+        section.setContains(section.getContains() - 1);
+
         System.out.println("Dropped section " + sectionId + " from " + foundSemester);
     }
 
@@ -133,6 +141,7 @@ public class Student extends Domain.Abstracts.UserEntity {
         dataModel.WriteToDatabase();
         contactInfo.WriteToDatabase();
         enrollmentModel.WriteToDatabase();
+        security.WriteToDatabase();
     }
 
     @Override
@@ -140,6 +149,7 @@ public class Student extends Domain.Abstracts.UserEntity {
         dataModel.DeleteFromTable();
         contactInfo.DeleteFromTable();
         enrollmentModel.DeleteFromTable();
+        security.DeleteFromTable();
     }
 
     private class StudentDataModel implements IDatabaseModel {

@@ -10,6 +10,8 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 public class LoginView extends JFrame {
 
@@ -27,7 +29,7 @@ public class LoginView extends JFrame {
 
     public LoginView() {
         setTitle("University Portal - Login");
-        setSize(400, 520);
+        setSize(400, 580); // Increased height slightly for new link
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null); // Center on screen
         getContentPane().setBackground(StyleConstants.TERTIARY_COLOR);
@@ -41,12 +43,7 @@ public class LoginView extends JFrame {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(StyleConstants.WHITE);
         panel.setBorder(new EmptyBorder(40, 40, 40, 40));
-        panel.setPreferredSize(new Dimension(350, 450));
-
-//        JLabel title = new JLabel("ERP");
-//        title.setFont(new Font("Segoe UI", Font.BOLD, 35));
-//        title.setForeground(StyleConstants.TERTIARY_COLOR);
-//        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panel.setPreferredSize(new Dimension(350, 500));
 
         JLabel heading = new JLabel("Sign in to your account");
         heading.setFont(StyleConstants.HEADER_FONT);
@@ -74,6 +71,26 @@ public class LoginView extends JFrame {
         loginButton.addActionListener(this::handleLogin);
         loginButton.setEnabled(false);
 
+        JLabel forgotPassLabel = new JLabel("Forgot Password?");
+        forgotPassLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        forgotPassLabel.setForeground(StyleConstants.SECONDARY_COLOR);
+        forgotPassLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        forgotPassLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        forgotPassLabel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (isEnabled()) handleForgotPassword();
+            }
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                forgotPassLabel.setForeground(StyleConstants.PRIMARY_COLOR);
+            }
+            @Override
+            public void mouseExited(MouseEvent e) {
+                forgotPassLabel.setForeground(StyleConstants.SECONDARY_COLOR);
+            }
+        });
+
         DocumentListener validationListener = new DocumentListener() {
             @Override public void insertUpdate(DocumentEvent e) { validateInputs(); }
             @Override public void removeUpdate(DocumentEvent e) { validateInputs(); }
@@ -87,8 +104,6 @@ public class LoginView extends JFrame {
         messageLabel.setForeground(StyleConstants.GRAY);
         messageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-//        panel.add(title);
-//        panel.add(Box.createVerticalStrut(10));
         panel.add(heading);
         panel.add(Box.createVerticalStrut(30));
         panel.add(userTypeCombo);
@@ -100,6 +115,8 @@ public class LoginView extends JFrame {
         panel.add(messageLabel);
         panel.add(Box.createVerticalStrut(20));
         panel.add(loginButton);
+        panel.add(Box.createVerticalStrut(15));
+        panel.add(forgotPassLabel); // Add the link
 
         return panel;
     }
@@ -151,7 +168,11 @@ public class LoginView extends JFrame {
                     UserEntity user = get();
                     if (user != null) {
                         dispose();
-                        System.out.println("User has logged in: " + user.getName() + " (" + type + ")");
+                        if (user instanceof Student) {
+                            new StudentDashboard((Student) user).setVisible(true);
+                        } else {
+                            JOptionPane.showMessageDialog(null, "Welcome " + user.getName() + " (" + type + ")");
+                        }
                     } else {
                         handleFailedAttempt();
                     }
@@ -163,6 +184,95 @@ public class LoginView extends JFrame {
             }
         };
         worker.execute();
+    }
+
+    private void handleForgotPassword() {
+        JDialog dialog = new JDialog(this, "Reset Password", true);
+        dialog.setSize(400, 450);
+        dialog.setLocationRelativeTo(this);
+        dialog.setLayout(new BorderLayout());
+
+        JPanel formPanel = new JPanel();
+        formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
+        formPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        formPanel.setBackground(StyleConstants.WHITE);
+
+        JLabel title = new JLabel("Reset Password");
+        title.setFont(StyleConstants.HEADER_FONT);
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        String[] types = {"Student", "Instructor", "Admin"};
+        StyledComboBox<String> typeBox = new StyledComboBox<>(types);
+
+        StyledField idInput = new StyledField("Your ID");
+        StyledField emailInput = new StyledField("Registered Email");
+        StyledField phoneInput = new StyledField("Registered Phone"); // Required by backend resetPassword()
+        StyledPasswordField newPassInput = new StyledPasswordField("New Password");
+
+        Dimension dim = new Dimension(300, 40);
+        typeBox.setMaximumSize(dim); idInput.setMaximumSize(dim);
+        emailInput.setMaximumSize(dim); phoneInput.setMaximumSize(dim);
+        newPassInput.setMaximumSize(dim);
+
+        StyledButton confirmBtn = new StyledButton("Reset Password", StyleConstants.PRIMARY_COLOR);
+        confirmBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        confirmBtn.setMaximumSize(dim);
+
+        formPanel.add(title);
+        formPanel.add(Box.createVerticalStrut(20));
+        formPanel.add(typeBox);
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(idInput);
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(emailInput);
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(phoneInput);
+        formPanel.add(Box.createVerticalStrut(10));
+        formPanel.add(newPassInput);
+        formPanel.add(Box.createVerticalStrut(20));
+        formPanel.add(confirmBtn);
+
+        confirmBtn.addActionListener(e -> {
+            String type = (String) typeBox.getSelectedItem();
+            String uid = idInput.getText().trim();
+            String mail = emailInput.getText().trim();
+            String ph = phoneInput.getText().trim();
+            String newP = new String(newPassInput.getPassword());
+
+            if(uid.isEmpty() || mail.isEmpty() || ph.isEmpty() || newP.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog, "All fields are required.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            try {
+                UserEntity user = null;
+                switch (type) {
+                    case "Student": user = new Student(uid); break;
+                    case "Instructor": user = new Instructor(uid); break;
+                    case "Admin": user = new Admin(uid); break;
+                }
+
+                if (user.getName().equals("TempName") || user.getName().equals("TempLoad")) {
+                    JOptionPane.showMessageDialog(dialog, "User ID not found.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                boolean success = user.resetPassword(mail, ph, newP);
+
+                if (success) {
+                    JOptionPane.showMessageDialog(dialog, "Password reset successfully! Please login.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    dialog.dispose();
+                } else {
+                    JOptionPane.showMessageDialog(dialog, "Verification failed.\nEmail or Phone does not match our records.", "Failed", JOptionPane.ERROR_MESSAGE);
+                }
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(dialog, "Database Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        dialog.add(formPanel, BorderLayout.CENTER);
+        dialog.setVisible(true);
     }
 
     private void handleFailedAttempt() {

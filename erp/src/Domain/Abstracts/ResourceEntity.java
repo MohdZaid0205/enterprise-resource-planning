@@ -1,10 +1,10 @@
-package Abstracts;
+package Domain.Abstracts;
 
-import Exceptions.InvalidEntityIdentityException;
-import Exceptions.InvalidEntityNameException;
+import Domain.Exceptions.InvalidEntityIdentityException;
+import Domain.Exceptions.InvalidEntityNameException;
 import java.sql.SQLException;
 
-public abstract class ResourceEntity extends EntityABC {
+public abstract class ResourceEntity extends Domain.Abstracts.EntityABC {
 
     public ResourceEntity(String entity_id, String entity_name)
             throws InvalidEntityIdentityException, InvalidEntityNameException

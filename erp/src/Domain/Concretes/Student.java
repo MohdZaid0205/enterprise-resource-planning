@@ -1,10 +1,10 @@
-package Concretes;
+package Domain.Concretes;
 
-import Abstracts.UserEntity;
-import Database.sqliteConnector;
-import Exceptions.InvalidEntityIdentityException;
-import Exceptions.InvalidEntityNameException;
-import Interfaces.IDatabaseModel;
+import Domain.Abstracts.UserEntity;
+import Domain.Database.sqliteConnector;
+import Domain.Exceptions.InvalidEntityIdentityException;
+import Domain.Exceptions.InvalidEntityNameException;
+import Domain.Interfaces.IDatabaseModel;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Student extends UserEntity {
+public class Student extends Domain.Abstracts.UserEntity {
 
     private final StudentDataModel dataModel;
     private final EnrollmentModel enrollmentModel;
@@ -24,7 +24,7 @@ public class Student extends UserEntity {
                    String email, String phone_number)
         throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(entity_id, entity_name, email, phone_number);
-        this.permission = Permission.PERMISSION_STUDENT;
+        this.permission = UserEntity.Permission.PERMISSION_STUDENT;
 
         dataModel = new StudentDataModel(enrollmentDate);
         enrollmentModel = new EnrollmentModel();
@@ -33,7 +33,7 @@ public class Student extends UserEntity {
     public Student(String entity_id, String entity_name, String enrollmentDate)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(entity_id, entity_name);
-        this.permission = Permission.PERMISSION_STUDENT;
+        this.permission = UserEntity.Permission.PERMISSION_STUDENT;
 
         dataModel = new StudentDataModel(enrollmentDate);
         enrollmentModel = new EnrollmentModel();
@@ -42,7 +42,7 @@ public class Student extends UserEntity {
     public Student(String entity_id)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(entity_id, "TempName");
-        this.permission = Permission.PERMISSION_STUDENT;
+        this.permission = UserEntity.Permission.PERMISSION_STUDENT;
 
         dataModel = new StudentDataModel();
         enrollmentModel = new EnrollmentModel();
@@ -257,6 +257,7 @@ public class Student extends UserEntity {
 
         @Override
         public void ReadFromDatabase() throws SQLException {
+            CreateTable();
             transcript.clear();
             try(Connection c=sqliteConnector.connect(database);
                 PreparedStatement s=c.prepareStatement(selectSql)){

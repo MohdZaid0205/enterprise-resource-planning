@@ -1,4 +1,4 @@
-package Validators;
+package Domain.Validators;
 
 import org.jetbrains.annotations.NotNull;
 

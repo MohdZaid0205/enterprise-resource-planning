@@ -1,4 +1,4 @@
-package Exceptions;
+package Domain.Exceptions;
 
 public class InvalidEntityIdentityException extends RuntimeException {
     public InvalidEntityIdentityException(String message) {

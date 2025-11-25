@@ -1,9 +1,9 @@
-package Abstracts;
+package Domain.Abstracts;
 
-import Exceptions.InvalidEntityIdentityException;
-import Exceptions.InvalidEntityNameException;
-import Validators.EntityIdentityValidator;
-import Validators.EntityNameValidator;
+import Domain.Exceptions.InvalidEntityIdentityException;
+import Domain.Exceptions.InvalidEntityNameException;
+import Domain.Validators.EntityIdentityValidator;
+import Domain.Validators.EntityNameValidator;
 
 
 public abstract class EntityABC {

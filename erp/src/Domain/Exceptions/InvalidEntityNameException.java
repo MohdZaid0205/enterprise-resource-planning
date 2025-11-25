@@ -1,4 +1,4 @@
-package Exceptions;
+package Domain.Exceptions;
 
 public class InvalidEntityNameException extends RuntimeException {
   public InvalidEntityNameException(String message) {

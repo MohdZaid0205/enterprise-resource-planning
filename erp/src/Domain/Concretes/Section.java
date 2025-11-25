@@ -1,11 +1,11 @@
-package Concretes;
+package Domain.Concretes;
 
-import Abstracts.ResourceEntity;
-import Abstracts.UserEntity;
-import Database.sqliteConnector;
-import Exceptions.InvalidEntityIdentityException;
-import Exceptions.InvalidEntityNameException;
-import Interfaces.IDatabaseModel;
+import Domain.Abstracts.ResourceEntity;
+import Domain.Abstracts.UserEntity;
+import Domain.Database.sqliteConnector;
+import Domain.Exceptions.InvalidEntityIdentityException;
+import Domain.Exceptions.InvalidEntityNameException;
+import Domain.Interfaces.IDatabaseModel;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -48,7 +48,7 @@ public class Section extends ResourceEntity {
     }
 
     public void updateTimetable(List<TimeSlot> newSlots, UserEntity.Permission perm) throws SQLException {
-        if (perm != UserEntity.Permission.PERMISSION_ADMIN) {
+        if (perm != Domain.Abstracts.UserEntity.Permission.PERMISSION_ADMIN) {
             throw new SecurityException("ACCESS DENIED: Only Administrators can modify Section Timetables.");
         }
         this.timetableModel.slots = newSlots;
@@ -91,6 +91,7 @@ public class Section extends ResourceEntity {
 
         public TimetableModel(String sectionId) throws SQLException {
             this.sectionId = sectionId;
+            CreateTable();
             ReadFromDatabase();
         }
 
@@ -160,9 +161,9 @@ public class Section extends ResourceEntity {
         }
 
         private void checkWritePermission() {
-            if (perm != UserEntity.Permission.PERMISSION_INSTRUCTOR &&
-                    perm != UserEntity.Permission.PERMISSION_ADMIN &&
-                    perm != UserEntity.Permission.PERMISSION_STUDENT_INSTRUCTOR) {
+            if (perm != Domain.Abstracts.UserEntity.Permission.PERMISSION_INSTRUCTOR &&
+                    perm != Domain.Abstracts.UserEntity.Permission.PERMISSION_ADMIN &&
+                    perm != Domain.Abstracts.UserEntity.Permission.PERMISSION_STUDENT_INSTRUCTOR) {
                 throw new SecurityException("ACCESS DENIED: User does not have permission to modify grades.");
             }
         }
@@ -231,6 +232,7 @@ public class Section extends ResourceEntity {
 
         @Override
         public void ReadFromDatabase() throws SQLException {
+            CreateTable();
             String sql = "SELECT * FROM records WHERE student_id = ? AND section_id = ?";
             try (Connection conn = sqliteConnector.connect(database);
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -418,7 +420,7 @@ public class Section extends ResourceEntity {
             this.C_=c_; this.D =d ; this.F =f ;
         }
 
-        public GradingSlabs() {}
+        public GradingSlabs() throws SQLException { ReadFromDatabase(); }
 
         @Override public void CreateTable() throws SQLException {
             try (Connection conn = sqliteConnector.connect(database);
@@ -439,6 +441,7 @@ public class Section extends ResourceEntity {
             }
         }
         @Override public void ReadFromDatabase() throws SQLException {
+            CreateTable();
             try (Connection conn = sqliteConnector.connect(database);
                  PreparedStatement stmt = conn.prepareStatement(selectSql)) {
                 stmt.setString(1, getId());

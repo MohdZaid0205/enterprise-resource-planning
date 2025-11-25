@@ -1,10 +1,11 @@
-package Concretes;
+package Domain.Concretes;
 
-import Abstracts.UserEntity;
-import Database.sqliteConnector;
-import Exceptions.InvalidEntityIdentityException;
-import Exceptions.InvalidEntityNameException;
-import Interfaces.IDatabaseModel;
+import Domain.Abstracts.UserEntity;
+import Domain.Database.sqliteConnector;
+import Domain.Interfaces.IDatabaseModel;
+import Domain.Concretes.Section;
+import Domain.Exceptions.InvalidEntityIdentityException;
+import Domain.Exceptions.InvalidEntityNameException;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -12,36 +13,36 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-public class Admin extends UserEntity {
+public class Admin extends Domain.Abstracts.UserEntity {
 
     private final AdminDataModel dataModel;
 
     public Admin(String entity_id, String entity_name, String email, String phone_number)
         throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException{
         super(entity_id, entity_name,  email, phone_number);
-        this.permission = Permission.PERMISSION_ADMIN;
+        this.permission = UserEntity.Permission.PERMISSION_ADMIN;
         dataModel = new AdminDataModel();
     }
 
     public Admin(String entity_id, String entity_name)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(entity_id, entity_name);
-        this.permission = Permission.PERMISSION_ADMIN;
+        this.permission = UserEntity.Permission.PERMISSION_ADMIN;
         dataModel = new AdminDataModel();
     }
 
     public Admin(String entity_id)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(entity_id, "TempName");
-        this.permission = Permission.PERMISSION_ADMIN;
+        this.permission = UserEntity.Permission.PERMISSION_ADMIN;
         dataModel = new AdminDataModel();
         dataModel.ReadFromDatabase();
     }
 
-    public void setSectionTimetable(String sectionId, List<Section.TimeSlot> newSlots)
+    public void setSectionTimetable(String sectionId, List<Domain.Concretes.Section.TimeSlot> newSlots)
             throws SQLException {
         try {
-            Section section = new Section(sectionId);
+            Domain.Concretes.Section section = new Domain.Concretes.Section(sectionId);
             section.updateTimetable(newSlots, this.permission);
         } catch (Exception e) {
             if (e instanceof SQLException) throw (SQLException) e;
@@ -52,8 +53,8 @@ public class Admin extends UserEntity {
     public void overrideStudentGrade(String sectionId, String studentId,
                                      float l, float q, float m, float e, float a, float p, float b)
             throws SQLException {
-        Section section = new Section(sectionId);
-        Section.StudentGradeProxy proxy = section.getStudentGradeRecord(studentId, this.permission);
+        Domain.Concretes.Section section = new Domain.Concretes.Section(sectionId);
+        Domain.Concretes.Section.StudentGradeProxy proxy = section.getStudentGradeRecord(studentId, this.permission);
 
         proxy.setLabs(l);
         proxy.setQuiz(q);

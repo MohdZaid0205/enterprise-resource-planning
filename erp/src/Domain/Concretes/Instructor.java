@@ -1,10 +1,10 @@
-package Concretes;
+package Domain.Concretes;
 
-import Abstracts.UserEntity;
-import Database.sqliteConnector;
-import Exceptions.InvalidEntityIdentityException;
-import Exceptions.InvalidEntityNameException;
-import Interfaces.IDatabaseModel;
+import Domain.Abstracts.UserEntity;
+import Domain.Database.sqliteConnector;
+import Domain.Exceptions.InvalidEntityIdentityException;
+import Domain.Exceptions.InvalidEntityNameException;
+import Domain.Interfaces.IDatabaseModel;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -13,7 +13,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Instructor extends UserEntity {
+public class Instructor extends Domain.Abstracts.UserEntity {
 
     private final InstructorDataModel dataModel;
     private final TeachingAssignmentModel assignmentModel;
@@ -21,7 +21,7 @@ public class Instructor extends UserEntity {
     public Instructor(String entity_id, String entity_name, String email, String phone_number)
         throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException{
         super(entity_id, entity_name,  email, phone_number);
-        this.permission = Permission.PERMISSION_INSTRUCTOR;
+        this.permission = UserEntity.Permission.PERMISSION_INSTRUCTOR;
         dataModel = new InstructorDataModel();
         assignmentModel = new TeachingAssignmentModel();
     }
@@ -29,7 +29,7 @@ public class Instructor extends UserEntity {
     public Instructor(String entity_id, String entity_name)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(entity_id, entity_name);
-        this.permission = Permission.PERMISSION_INSTRUCTOR;
+        this.permission = UserEntity.Permission.PERMISSION_INSTRUCTOR;
         dataModel = new InstructorDataModel();
         assignmentModel = new TeachingAssignmentModel();
     }
@@ -37,7 +37,7 @@ public class Instructor extends UserEntity {
     public Instructor(String entity_id)
             throws InvalidEntityIdentityException, InvalidEntityNameException, SQLException {
         super(entity_id, "TempLoad");
-        this.permission = Permission.PERMISSION_INSTRUCTOR;
+        this.permission = UserEntity.Permission.PERMISSION_INSTRUCTOR;
         dataModel = new InstructorDataModel();
         dataModel.ReadFromDatabase();
         assignmentModel = new TeachingAssignmentModel();
@@ -51,13 +51,19 @@ public class Instructor extends UserEntity {
         }
     }
 
-    public void enterMarks(String sectionId, String studentId, float l, float q, float m, float e, float a, float p, float b)
+    public void enterMarks(String sectionId, String studentId, float l, float q, float m,
+                           float e, float a, float p, float b)
             throws SQLException {
         validateOwnership(sectionId);
-        Section section = new Section(sectionId);
-        Section.StudentGradeProxy proxy = section.getStudentGradeRecord(studentId, this.permission);
-        proxy.setLabs(l); proxy.setQuiz(q); proxy.setMidExams(m);
-        proxy.setEndExams(e); proxy.setAssignments(a); proxy.setProjects(p); proxy.setBonus(b);
+        Section section = new Domain.Concretes.Section(sectionId);
+        Domain.Concretes.Section.StudentGradeProxy proxy = section.getStudentGradeRecord(studentId, this.permission);
+        proxy.setLabs(l);
+        proxy.setQuiz(q);
+        proxy.setMidExams(m);
+        proxy.setEndExams(e);
+        proxy.setAssignments(a);
+        proxy.setProjects(p);
+        proxy.setBonus(b);
         proxy.WriteToDatabase();
     }
 
@@ -132,7 +138,7 @@ public class Instructor extends UserEntity {
         {
             CreateTable();
             try(Connection c=sqliteConnector.connect(database);
-                               PreparedStatement s=c.prepareStatement(insertSql)) {
+                 PreparedStatement s=c.prepareStatement(insertSql)) {
                 s.setString(1, getId());
                 s.setString(2, getName());
                 s.executeUpdate();

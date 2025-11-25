@@ -1,4 +1,4 @@
-package Interfaces;
+package Domain.Interfaces;
 
 import java.sql.SQLException;
 

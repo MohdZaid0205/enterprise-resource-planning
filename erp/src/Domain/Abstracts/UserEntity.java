@@ -1,9 +1,9 @@
-package Abstracts;
+package Domain.Abstracts;
 
-import Database.sqliteConnector;
-import Exceptions.InvalidEntityIdentityException;
-import Exceptions.InvalidEntityNameException;
-import Interfaces.IDatabaseModel;
+import Domain.Database.sqliteConnector;
+import Domain.Exceptions.InvalidEntityIdentityException;
+import Domain.Exceptions.InvalidEntityNameException;
+import Domain.Interfaces.IDatabaseModel;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;
@@ -38,17 +38,18 @@ public abstract class UserEntity extends EntityABC {
         public String phone;
 
         private static final String database = "jdbc:sqlite:contacts.db";
-        private static final String tableSql = "CREATE TABLE IF NOT EXISTS contacts("+
-                                                    "id TEXT PRIMARY KEY NOT NULL,"+
-                                                    "email TEXT NOT NULL"+
-                                                    "phone TEXT NOT NULL"+
+        private static final String tableSql = "CREATE TABLE IF NOT EXISTS contact("+
+                                                    "id TEXT PRIMARY KEY NOT NULL, "+
+                                                    "email TEXT, "+
+                                                    "phone TEXT"+
                                                 ")";
-        private static final String insertSql = "INSERT INTO contacts(id, email, phone) VALUES(?, ?, ?)" +
-                                                "ON CONFLICT DO UPDATE SET email = excluded.name" +
+        private static final String insertSql = "INSERT INTO contact(id, email, phone) VALUES(?, ?, ?) " +
+                                                "ON CONFLICT(id) DO UPDATE SET " +
+                                                "email = excluded.email, " +
                                                 "phone = excluded.phone";
-        private static final String deleteSql = "DELETE FROM contacts WHERE id IN"+
-                                                "(SELECT id FROM contacts WHERE id=?)";
-        private static final String selectSql = "SELECT email, phone FROM contacts WHERE id = ?";
+        private static final String deleteSql = "DELETE FROM contact WHERE id IN"+
+                                                "(SELECT id FROM contact WHERE id=?)";
+        private static final String selectSql = "SELECT email, phone FROM contact WHERE id = ?";
 
         public ContactInformationModel(@NotNull String email, @NotNull String phone)
         { this.email = email; this.phone = phone; }
@@ -67,7 +68,7 @@ public abstract class UserEntity extends EntityABC {
 
         @Override
         public void WriteToDatabase() throws SQLException {
-
+            CreateTable();
             try (Connection conn = sqliteConnector.connect(database);
                  PreparedStatement stmt = conn.prepareStatement(insertSql);) {
                 stmt.setString(1,getId());
@@ -80,6 +81,7 @@ public abstract class UserEntity extends EntityABC {
 
         @Override
         public void ReadFromDatabase() throws SQLException {
+            CreateTable();
             try (Connection conn = sqliteConnector.connect(database);
                  PreparedStatement stmt = conn.prepareStatement(selectSql)) {
                 stmt.setString(1, getId());

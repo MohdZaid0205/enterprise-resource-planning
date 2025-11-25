@@ -1,17 +1,16 @@
-package Concretes;
+package Domain.Concretes;
 
-import Abstracts.ResourceEntity;
-import Database.sqliteConnector;
-import Exceptions.InvalidEntityIdentityException;
-import Exceptions.InvalidEntityNameException;
-import Interfaces.IDatabaseModel;
+import Domain.Database.sqliteConnector;
+import Domain.Exceptions.InvalidEntityIdentityException;
+import Domain.Exceptions.InvalidEntityNameException;
+import Domain.Interfaces.IDatabaseModel;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class Course extends ResourceEntity {
+public class Course extends Domain.Abstracts.ResourceEntity {
 
     private final CourseMetadata metadata;
 
@@ -68,7 +67,7 @@ public class Course extends ResourceEntity {
             this.credits = credits;
             this.capacity = capacity;
         }
-        public CourseMetadata() {}
+        public CourseMetadata() throws SQLException { ReadFromDatabase(); }
 
         @Override public void CreateTable() throws SQLException {
             try(Connection c=sqliteConnector.connect(database);
@@ -89,6 +88,7 @@ public class Course extends ResourceEntity {
         }
 
         @Override public void ReadFromDatabase() throws SQLException {
+            CreateTable();
             try(Connection c=sqliteConnector.connect(database);
                 PreparedStatement s=c.prepareStatement(selectSql)){
                 s.setString(1, getId());

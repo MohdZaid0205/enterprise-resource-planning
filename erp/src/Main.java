@@ -8,6 +8,12 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
+        try {
+            Admin admin = new Admin("ADMIN", "Administrator", "admin@erp.com", "0000000000", "123");
+            admin.onPresistenceSave();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         SwingUtilities.invokeLater(() -> {
             try {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());

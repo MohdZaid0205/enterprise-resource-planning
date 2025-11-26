@@ -8,7 +8,7 @@ import java.sql.SQLException;
 
 public class ApplicationRules {
 
-    private static final String database = "jdbc:sqlite:settings.db";
+    private static final String database = "jdbc:sqlite:erp.db";
 
     public static boolean isMaintenanceMode() {
         createTable();

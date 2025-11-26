@@ -76,7 +76,6 @@ public class Section extends ResourceEntity {
         public List<TimeSlot> slots = new ArrayList<>();
         private final String sectionId;
 
-        private static final String database = "jdbc:sqlite:timetable.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS timetable (" +
                                                     "section_id TEXT, day TEXT, " +
                                                     "start_time TEXT, duration INTEGER, room TEXT, " +
@@ -148,7 +147,6 @@ public class Section extends ResourceEntity {
         private final UserEntity.Permission perm;
 
         private float labs, quiz, mid_exams, end_exams, assignments, projects, bonus;
-        private static final String database = "jdbc:sqlite:academic_records.db";
 
         public StudentGradeProxy(String studentId, String sectionId, UserEntity.Permission perm)
                 throws SQLException {
@@ -297,7 +295,6 @@ public class Section extends ResourceEntity {
         public float projects;
         public float bonus;
 
-        private static final String database = "jdbc:sqlite:gradings.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS gradings (" +
                                                     "id TEXT PRIMARY KEY NOT NULL, " +
                                                     "labs FLOAT, quiz FLOAT, mid_exams FLOAT, end_exams FLOAT, " +
@@ -391,7 +388,6 @@ public class Section extends ResourceEntity {
     public class GradingSlabs implements IDatabaseModel {
         public float O, A, A_, B, B_, C, C_, D, F;
 
-        private static final String database = "jdbc:sqlite:slabs.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS slabs (" +
                                                     "id TEXT PRIMARY KEY NOT NULL, " +
                                                     "O FLOAT, A FLOAT, A_ FLOAT, B FLOAT, B_ FLOAT, " +
@@ -488,7 +484,6 @@ public class Section extends ResourceEntity {
         public int capacity;
         public int contains;
 
-        private static final String database = "jdbc:sqlite:sections.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS sections(" +
                                                     "id TEXT PRIMARY KEY, " +
                                                     "name TEXT NOT NULL, " +

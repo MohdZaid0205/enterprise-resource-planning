@@ -240,7 +240,7 @@ public class MyCoursesView extends JPanel {
     private List<String> getSemestersFromDB() {
         List<String> sems = new ArrayList<>();
         String sql = "SELECT DISTINCT semester FROM enrollments WHERE student_id = ?";
-        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:enrollments.db");
+        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, student.getId());
             ResultSet rs = stmt.executeQuery();
@@ -251,7 +251,7 @@ public class MyCoursesView extends JPanel {
     private List<String> getSectionIdsForSemester(String semester) {
         List<String> ids = new ArrayList<>();
         String sql = "SELECT section_id FROM enrollments WHERE student_id = ? AND semester = ?";
-        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:enrollments.db");
+        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, student.getId());
             stmt.setString(2, semester);

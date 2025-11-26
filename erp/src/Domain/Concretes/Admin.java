@@ -83,7 +83,6 @@ public class Admin extends Domain.Abstracts.UserEntity {
     }
 
     private class AdminDataModel implements IDatabaseModel {
-        private static final String database = "jdbc:sqlite:admins.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS admins(" +
                                                     "id TEXT PRIMARY KEY, " +
                                                     "name TEXT" +

@@ -88,7 +88,7 @@ public class AdminInstructorView extends JPanel {
         model.setRowCount(0);
         List<String> ids = new ArrayList<>();
 
-        try (Connection c = sqliteConnector.connect("jdbc:sqlite:instructors.db");
+        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
              ResultSet rs = c.createStatement().executeQuery("SELECT id FROM instructors")) {
             while (rs.next()) {
                 ids.add(rs.getString("id"));
@@ -364,7 +364,7 @@ public class AdminInstructorView extends JPanel {
     private void refreshAssignedSections(Instructor instructor, DefaultTableModel model) {
         model.setRowCount(0);
         String sql = "SELECT section_id FROM teaching WHERE instructor_id = ?";
-        try (Connection c = sqliteConnector.connect("jdbc:sqlite:assignments.db");
+        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
              PreparedStatement s = c.prepareStatement(sql)) {
             s.setString(1, instructor.getId());
             ResultSet rs = s.executeQuery();
@@ -393,7 +393,7 @@ public class AdminInstructorView extends JPanel {
 
     private void unassignSection(Instructor instructor, String sectionId, DefaultTableModel model) {
         String sql = "DELETE FROM teaching WHERE instructor_id = ? AND section_id = ?";
-        try (Connection c = sqliteConnector.connect("jdbc:sqlite:assignments.db");
+        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
              PreparedStatement s = c.prepareStatement(sql)) {
             s.setString(1, instructor.getId());
             s.setString(2, sectionId);
@@ -413,7 +413,7 @@ public class AdminInstructorView extends JPanel {
 
     private String[] getAllSectionIds() {
         List<String> list = new ArrayList<>();
-        try (Connection c = sqliteConnector.connect("jdbc:sqlite:sections.db");
+        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
              ResultSet rs = c.createStatement().executeQuery("SELECT id FROM sections")) {
             while (rs.next()) list.add(rs.getString("id"));
         } catch (Exception e) {

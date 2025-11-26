@@ -44,7 +44,6 @@ public abstract class UserEntity extends EntityABC {
         public String email;
         public String phone;
 
-        private static final String database = "jdbc:sqlite:contacts.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS contact("+
                                                     "id TEXT PRIMARY KEY NOT NULL, "+
                                                     "email TEXT, "+

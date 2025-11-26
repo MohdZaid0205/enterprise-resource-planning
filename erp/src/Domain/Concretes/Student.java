@@ -157,7 +157,6 @@ public class Student extends Domain.Abstracts.UserEntity {
     private class StudentDataModel implements IDatabaseModel {
         public String enrollmentDate;
 
-        private static final String database = "jdbc:sqlite:students.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS students(" +
                                                     "id TEXT PRIMARY KEY, " +
                                                     "name TEXT, " +
@@ -217,7 +216,6 @@ public class Student extends Domain.Abstracts.UserEntity {
             return transcript.get(sem);
         }
 
-        private static final String database = "jdbc:sqlite:enrollments.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS enrollments(" +
                                                     "student_id TEXT, " +
                                                     "section_id TEXT, " +

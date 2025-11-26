@@ -122,8 +122,8 @@ public class Instructor extends Domain.Abstracts.UserEntity {
         public float getLowest() { return lowest; }
         public void setLowest(float lowest) { this.lowest = lowest; }
     }
-    private class InstructorDataModel implements IDatabaseModel {
-        private static final String database = "jdbc:sqlite:instructors.db";
+    private class InstructorDataModel implements IDatabaseModel{
+        
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS instructors(id TEXT PRIMARY KEY, name TEXT)";
         private static final String insertSql = "INSERT INTO instructors(id, name) VALUES(?, ?) " +
                                                 "ON CONFLICT(id) DO UPDATE SET name=excluded.name";
@@ -166,7 +166,7 @@ public class Instructor extends Domain.Abstracts.UserEntity {
     }
     private class TeachingAssignmentModel implements IDatabaseModel {
         public List<String> mySections = new ArrayList<>();
-        private static final String database = "jdbc:sqlite:assignments.db";
+
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS teaching(" +
                                                     "instructor_id TEXT, " +
                                                     "section_id TEXT, " +

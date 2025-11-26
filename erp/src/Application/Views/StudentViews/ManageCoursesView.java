@@ -144,7 +144,7 @@ public class ManageCoursesView extends JPanel {
     private List<String> getEnrolledSectionsForStudent(String studentId, String semester) {
         List<String> ids = new ArrayList<>();
         String sql = "SELECT section_id FROM enrollments WHERE student_id = ? AND semester = ?";
-        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:enrollments.db");
+        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, studentId);
             stmt.setString(2, semester);
@@ -157,7 +157,7 @@ public class ManageCoursesView extends JPanel {
     private List<String> getAllCourseIds() {
         List<String> ids = new ArrayList<>();
         String sql = "SELECT id FROM courses";
-        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:courses.db");
+        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
@@ -276,7 +276,7 @@ public class ManageCoursesView extends JPanel {
         private List<String> getSectionsForCourse(String courseId, String semester) {
             List<String> ids = new ArrayList<>();
             String sql = "SELECT id FROM sections WHERE course_id = ? AND semester = ?";
-            try (Connection conn = sqliteConnector.connect("jdbc:sqlite:sections.db");
+            try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setString(1, courseId);
                 stmt.setString(2, semester);

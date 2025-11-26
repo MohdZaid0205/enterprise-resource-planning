@@ -47,7 +47,6 @@ public class Course extends Domain.Abstracts.ResourceEntity {
         public int credits;
         public int capacity;
 
-        private static final String database = "jdbc:sqlite:courses.db";
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS courses (" +
                                                     "id TEXT PRIMARY KEY, " +
                                                     "title TEXT, " +

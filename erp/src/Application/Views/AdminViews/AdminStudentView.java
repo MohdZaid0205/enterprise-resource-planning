@@ -78,7 +78,7 @@ public class AdminStudentView extends JPanel {
         model.setRowCount(0);
         List<String> ids = new ArrayList<>();
 
-        try (Connection c = sqliteConnector.connect("jdbc:sqlite:students.db");
+        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
              ResultSet rs = c.createStatement().executeQuery("SELECT id FROM students")) {
             while(rs.next()) {
                 ids.add(rs.getString("id"));

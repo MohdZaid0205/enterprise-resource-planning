@@ -81,7 +81,7 @@ public class AdminSectionView extends JPanel {
         model.setRowCount(0);
         List<String> ids = new ArrayList<>();
 
-        try (Connection c = sqliteConnector.connect("jdbc:sqlite:sections.db");
+        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
              ResultSet rs = c.createStatement().executeQuery("SELECT id FROM sections")) {
             while(rs.next()) {
                 ids.add(rs.getString("id"));
@@ -382,7 +382,7 @@ public class AdminSectionView extends JPanel {
         iTable.setModel(iModel);
 
         List<String> loadedIds = new ArrayList<>();
-        try (Connection c = sqliteConnector.connect("jdbc:sqlite:instructors.db");
+        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
              ResultSet rs = c.createStatement().executeQuery("SELECT id FROM instructors")) {
             while(rs.next()) loadedIds.add(rs.getString("id"));
         } catch (Exception e) { e.printStackTrace(); }
@@ -421,7 +421,7 @@ public class AdminSectionView extends JPanel {
 
     private String[] getAllCourseIds() {
         List<String> ids = new ArrayList<>();
-        try (Connection c = sqliteConnector.connect("jdbc:sqlite:courses.db");
+        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
              ResultSet rs = c.createStatement().executeQuery("SELECT id FROM courses")) {
             while(rs.next()) ids.add(rs.getString("id"));
         } catch (Exception e) { e.printStackTrace(); }
@@ -430,7 +430,7 @@ public class AdminSectionView extends JPanel {
 
     private void updateSectionCourseId(String sectionId, String newCourseId) {
         String sql = "UPDATE sections SET course_id = ? WHERE id = ?";
-        try (Connection c = sqliteConnector.connect("jdbc:sqlite:sections.db");
+        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
              java.sql.PreparedStatement s = c.prepareStatement(sql)) {
             s.setString(1, newCourseId);
             s.setString(2, sectionId);

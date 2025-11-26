@@ -9,6 +9,8 @@ import java.sql.SQLException;
  */
 public interface IDatabaseModel {
 
+    public static final String database = "jdbc:sqlite:erp.db";
+
     /**
      * Create table for current clas if it isn't already present in db.
      */

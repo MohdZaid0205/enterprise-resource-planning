@@ -76,7 +76,7 @@ public class Instructor extends Domain.Abstracts.UserEntity {
                     "MIN(labs+quiz+mid+end+assign+proj+bonus) as min_score " +
                     "FROM records WHERE section_id = ?";
 
-        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:academic_records.db");
+        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, sectionId);
             ResultSet rs = stmt.executeQuery();
@@ -123,7 +123,7 @@ public class Instructor extends Domain.Abstracts.UserEntity {
         public void setLowest(float lowest) { this.lowest = lowest; }
     }
     private class InstructorDataModel implements IDatabaseModel{
-        
+
         private static final String tableSql = "CREATE TABLE IF NOT EXISTS instructors(id TEXT PRIMARY KEY, name TEXT)";
         private static final String insertSql = "INSERT INTO instructors(id, name) VALUES(?, ?) " +
                                                 "ON CONFLICT(id) DO UPDATE SET name=excluded.name";
@@ -148,6 +148,7 @@ public class Instructor extends Domain.Abstracts.UserEntity {
         }
         @Override public void ReadFromDatabase() throws SQLException
         {
+            CreateTable();
             try(Connection c=sqliteConnector.connect(database);
                 PreparedStatement s=c.prepareStatement(selectSql)){
                 s.setString(1, getId());

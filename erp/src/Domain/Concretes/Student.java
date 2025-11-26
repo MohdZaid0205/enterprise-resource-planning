@@ -124,7 +124,7 @@ public class Student extends Domain.Abstracts.UserEntity {
         enrollmentModel.transcript.get(foundSemester).remove(sectionId);
         enrollmentModel.removeSingleEnrollment(foundSemester, sectionId);
         String deleteGradesSql = "DELETE FROM records WHERE student_id = ? AND section_id = ?";
-        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:academic_records.db");
+        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
              PreparedStatement stmt = conn.prepareStatement(deleteGradesSql)) {
             stmt.setString(1, getId());
             stmt.setString(2, sectionId);

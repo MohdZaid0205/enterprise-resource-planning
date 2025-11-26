@@ -84,7 +84,7 @@ public class AdminInstructorView extends JPanel {
         refreshData();
     }
 
-    private void refreshData() {
+    public void refreshData() {
         model.setRowCount(0);
         List<String> ids = new ArrayList<>();
 
@@ -110,7 +110,7 @@ public class AdminInstructorView extends JPanel {
     private void openEditDialog(Instructor existing) {
         JDialog d = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
                 existing == null ? "Create Instructor" : "Edit Instructor", true);
-        d.setSize(550, 700); // Increased width/height slightly
+        d.setSize(550, 700);
         d.setLocationRelativeTo(this);
 
         JPanel mainPanel = new JPanel();
@@ -158,13 +158,12 @@ public class AdminInstructorView extends JPanel {
 
         mainPanel.add(Box.createVerticalStrut(25));
 
-        // Responsive Button Panel using GridBagLayout for centering and wrapping
         JPanel btnPanel = new JPanel(new GridBagLayout());
         btnPanel.setBackground(StyleConstants.WHITE);
         btnPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(0, 5, 0, 5); // Gap between buttons
+        gbc.insets = new Insets(0, 5, 0, 5);
         gbc.fill = GridBagConstraints.NONE;
         gbc.weightx = 0;
 
@@ -361,15 +360,18 @@ public class AdminInstructorView extends JPanel {
         d.setVisible(true);
     }
 
+    // CHANGED: Query sections table instead of teaching table for synchronization
     private void refreshAssignedSections(Instructor instructor, DefaultTableModel model) {
         model.setRowCount(0);
-        String sql = "SELECT section_id FROM teaching WHERE instructor_id = ?";
+        // OLD: String sql = "SELECT section_id FROM teaching WHERE instructor_id = ?";
+        // NEW: Use sections table as source of truth to match AdminSectionView
+        String sql = "SELECT id FROM sections WHERE instructor_id = ?";
         try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
              PreparedStatement s = c.prepareStatement(sql)) {
             s.setString(1, instructor.getId());
             ResultSet rs = s.executeQuery();
             while (rs.next()) {
-                model.addRow(new Object[]{rs.getString("section_id"), "UNASSIGN"});
+                model.addRow(new Object[]{rs.getString("id"), "UNASSIGN"});
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -378,8 +380,10 @@ public class AdminInstructorView extends JPanel {
 
     private void assignSection(Instructor instructor, String sectionId, DefaultTableModel model) {
         try {
+            // 1. Update teaching table (keep for redundancy/legacy if needed, or purely rely on sections)
             instructor.assignToSection(sectionId);
 
+            // 2. Update sections table (Source of Truth)
             Section sec = new Section(sectionId);
             sec.setInstructorId(instructor.getId());
             sec.onPresistenceSave();
@@ -392,6 +396,7 @@ public class AdminInstructorView extends JPanel {
     }
 
     private void unassignSection(Instructor instructor, String sectionId, DefaultTableModel model) {
+        // 1. Remove from teaching table
         String sql = "DELETE FROM teaching WHERE instructor_id = ? AND section_id = ?";
         try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
              PreparedStatement s = c.prepareStatement(sql)) {
@@ -399,8 +404,9 @@ public class AdminInstructorView extends JPanel {
             s.setString(2, sectionId);
             s.executeUpdate();
 
+            // 2. Update sections table (Source of Truth)
             Section sec = new Section(sectionId);
-            if (sec.getInstructorId().equals(instructor.getId())) {
+            if (sec.getInstructorId() != null && sec.getInstructorId().equals(instructor.getId())) {
                 sec.setInstructorId("Unassigned");
                 sec.onPresistenceSave();
             }

@@ -18,6 +18,12 @@ public class AdminDashboard extends JFrame {
     private JPanel contentArea;
     private StyledButton maintenanceBtn;
 
+    // Keep references to views to call refresh methods
+    private AdminStudentView studentView;
+    private AdminInstructorView instructorView;
+    private AdminCourseView courseView;
+    private AdminSectionView sectionView;
+
     public AdminDashboard(Admin admin) {
         this.admin = admin;
 
@@ -32,10 +38,16 @@ public class AdminDashboard extends JFrame {
         contentArea = new JPanel(new CardLayout());
         contentArea.setBackground(StyleConstants.WHITE);
 
-        contentArea.add(new AdminStudentView(), "STUDENTS");
-        contentArea.add(new AdminInstructorView(), "INSTRUCTORS");
-        contentArea.add(new AdminCourseView(), "COURSES");
-        contentArea.add(new AdminSectionView(), "SECTIONS");
+        // Initialize Views
+        studentView = new AdminStudentView();
+        instructorView = new AdminInstructorView();
+        courseView = new AdminCourseView();
+        sectionView = new AdminSectionView();
+
+        contentArea.add(studentView, "STUDENTS");
+        contentArea.add(instructorView, "INSTRUCTORS");
+        contentArea.add(courseView, "COURSES");
+        contentArea.add(sectionView, "SECTIONS");
 
         add(contentArea, BorderLayout.CENTER);
     }
@@ -182,6 +194,13 @@ public class AdminDashboard extends JFrame {
         btn.addActionListener(e -> {
             CardLayout cl = (CardLayout) contentArea.getLayout();
             cl.show(contentArea, cardName);
+
+            // Explicitly refresh data when switching tabs
+            if ("SECTIONS".equals(cardName)) {
+                sectionView.refreshData();
+            } else if ("INSTRUCTORS".equals(cardName)) {
+                instructorView.refreshData();
+            }
         });
 
         return btn;

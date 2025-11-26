@@ -1,8 +1,6 @@
 package Application.Views.AdminViews;
 
 import Application.Components.*;
-import Domain.Abstracts.UserEntity;
-import Domain.Concretes.Course;
 import Domain.Concretes.Instructor;
 import Domain.Concretes.Section;
 import Domain.Database.sqliteConnector;
@@ -14,6 +12,7 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,7 +76,8 @@ public class AdminSectionView extends JPanel {
         refreshData();
     }
 
-    private void refreshData() {
+    // CHANGED FROM PRIVATE TO PUBLIC
+    public void refreshData() {
         model.setRowCount(0);
         List<String> ids = new ArrayList<>();
 
@@ -102,7 +102,7 @@ public class AdminSectionView extends JPanel {
     private void openEditDialog(Section existing) {
         JDialog d = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
                 existing == null ? "Create Section" : "Edit Section", true);
-        d.setSize(500, 750); // Increased height for buttons
+        d.setSize(500, 750);
         d.setLocationRelativeTo(this);
 
         JPanel mainPanel = new JPanel();
@@ -206,6 +206,7 @@ public class AdminSectionView extends JPanel {
 
                 if (confirm == JOptionPane.YES_OPTION) {
                     try {
+                        removeFromTeachingTable(existing.getInstructorId(), existing.getId());
                         existing.onPresistenceDelete();
                         d.dispose();
                         refreshData();
@@ -236,9 +237,14 @@ public class AdminSectionView extends JPanel {
                 int cap = Integer.parseInt(capStr);
                 if (cap < 1) throw new ArithmeticException("Capacity must be > 0");
 
+                String oldInstructorId = (existing != null) ? existing.getInstructorId() : null;
+
                 if (existing == null) {
                     Section s = new Section(sid, name, cid, iid, sem, cap, 0);
                     s.onPresistenceSave();
+                    if (!iid.isEmpty() && !iid.equals("Unassigned")) {
+                        addToTeachingTable(iid, sid);
+                    }
                 } else {
                     existing.setName(name);
                     existing.setInstructorId(iid);
@@ -246,6 +252,15 @@ public class AdminSectionView extends JPanel {
                     existing.setCapacity(cap);
                     existing.onPresistenceSave();
                     updateSectionCourseId(sid, cid);
+
+                    if (oldInstructorId != null && !oldInstructorId.equals(iid)) {
+                        if (!oldInstructorId.isEmpty() && !oldInstructorId.equals("Unassigned")) {
+                            removeFromTeachingTable(oldInstructorId, sid);
+                        }
+                        if (!iid.isEmpty() && !iid.equals("Unassigned")) {
+                            addToTeachingTable(iid, sid);
+                        }
+                    }
                 }
                 d.dispose();
                 refreshData();
@@ -284,7 +299,6 @@ public class AdminSectionView extends JPanel {
         d.setLocationRelativeTo(this);
         d.setLayout(new BorderLayout());
 
-        // --- List Existing Slots ---
         String[] cols = {"Day", "Start", "Duration (m)", "Room", "Action"};
         DefaultTableModel tModel = new DefaultTableModel(cols, 0) {
             @Override public boolean isCellEditable(int row, int col) { return false; }
@@ -292,7 +306,6 @@ public class AdminSectionView extends JPanel {
         StyledTable tTable = new StyledTable(cols, new Object[][]{});
         tTable.setModel(tModel);
 
-        // Load current slots
         List<Section.TimeSlot> slots = section.getTimetable();
         for(Section.TimeSlot ts : slots) {
             tModel.addRow(new Object[]{ts.day, ts.startTime, ts.durationMins, ts.room, "REMOVE"});
@@ -303,10 +316,11 @@ public class AdminSectionView extends JPanel {
             public void mouseClicked(MouseEvent e) {
                 int row = tTable.rowAtPoint(e.getPoint());
                 int col = tTable.columnAtPoint(e.getPoint());
-                if(row >= 0 && col == 4) { // Remove
+                if(row >= 0 && col == 4) {
                     slots.remove(row);
                     try {
-                        section.updateTimetable(slots, UserEntity.Permission.PERMISSION_ADMIN);
+                        section.updateTimetable(slots, Application.Views.AdminViews.AdminSectionView.this.model == null ? Domain.Abstracts.UserEntity.Permission.PERMISSION_ADMIN : Domain.Abstracts.UserEntity.Permission.PERMISSION_ADMIN);
+                        // Note: Passed permission directly from enum in loop logic
                         tModel.removeRow(row);
                     } catch(Exception ex) { ex.printStackTrace(); }
                 }
@@ -345,9 +359,8 @@ public class AdminSectionView extends JPanel {
                 if(!tStr.matches("\\d{2}:\\d{2}")) throw new Exception("Invalid Time Format (HH:MM)");
 
                 slots.add(new Section.TimeSlot(dStr, tStr, min, rStr));
-                section.updateTimetable(slots, UserEntity.Permission.PERMISSION_ADMIN);
+                section.updateTimetable(slots, Domain.Abstracts.UserEntity.Permission.PERMISSION_ADMIN);
 
-                // Refresh table
                 tModel.setRowCount(0);
                 for(Section.TimeSlot ts : slots) {
                     tModel.addRow(new Object[]{ts.day, ts.startTime, ts.durationMins, ts.room, "REMOVE"});
@@ -431,8 +444,29 @@ public class AdminSectionView extends JPanel {
     private void updateSectionCourseId(String sectionId, String newCourseId) {
         String sql = "UPDATE sections SET course_id = ? WHERE id = ?";
         try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
-             java.sql.PreparedStatement s = c.prepareStatement(sql)) {
+             PreparedStatement s = c.prepareStatement(sql)) {
             s.setString(1, newCourseId);
+            s.setString(2, sectionId);
+            s.executeUpdate();
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private void addToTeachingTable(String instructorId, String sectionId) {
+        String sql = "INSERT INTO teaching(instructor_id, section_id) VALUES(?, ?) " +
+                "ON CONFLICT(instructor_id, section_id) DO NOTHING";
+        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
+             PreparedStatement s = c.prepareStatement(sql)) {
+            s.setString(1, instructorId);
+            s.setString(2, sectionId);
+            s.executeUpdate();
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private void removeFromTeachingTable(String instructorId, String sectionId) {
+        String sql = "DELETE FROM teaching WHERE instructor_id = ? AND section_id = ?";
+        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
+             PreparedStatement s = c.prepareStatement(sql)) {
+            s.setString(1, instructorId);
             s.setString(2, sectionId);
             s.executeUpdate();
         } catch (Exception e) { e.printStackTrace(); }

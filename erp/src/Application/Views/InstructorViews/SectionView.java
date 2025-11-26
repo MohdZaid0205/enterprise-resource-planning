@@ -2,6 +2,7 @@ package Application.Views.InstructorViews;
 
 import Application.Components.StyleConstants;
 import Application.Components.StyledButton;
+import Application.Components.StyledComboBox;
 import Application.Components.StyledField;
 import Domain.Concretes.Instructor;
 import Domain.Concretes.Section;
@@ -15,6 +16,7 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.DefaultCellEditor;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
+import java.awt.event.ItemEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -26,6 +28,7 @@ public class SectionView extends JPanel {
 
     private final Instructor instructor;
     private JPanel listContainer;
+    private StyledComboBox<String> sectionSelector;
 
     public SectionView(Instructor instructor) {
         this.instructor = instructor;
@@ -44,9 +47,25 @@ public class SectionView extends JPanel {
         title.setForeground(StyleConstants.WHITE);
         header.add(title);
 
+        header.add(Box.createHorizontalStrut(30));
+
+        header.add(new JLabel("<html><b style='color:white'>Select Section: </b></html>"));
+
+        sectionSelector = new StyledComboBox<>(new String[]{"All Sections"});
+        sectionSelector.setPreferredSize(new Dimension(150, 35));
+        sectionSelector.addItemListener(e -> {
+            if (e.getStateChange() == ItemEvent.SELECTED) {
+                loadSections();
+            }
+        });
+        header.add(sectionSelector);
+
         StyledButton refreshBtn = new StyledButton("Refresh List", StyleConstants.SECONDARY_COLOR);
         refreshBtn.setPreferredSize(new Dimension(120, 35));
-        refreshBtn.addActionListener(e -> loadSections());
+        refreshBtn.addActionListener(e -> {
+            populateSectionSelector();
+            loadSections();
+        });
         header.add(Box.createHorizontalStrut(20));
         header.add(refreshBtn);
 
@@ -64,13 +83,41 @@ public class SectionView extends JPanel {
         add(header, BorderLayout.NORTH);
         add(scroll, BorderLayout.CENTER);
 
+        populateSectionSelector();
         loadSections();
+    }
+
+    private void populateSectionSelector() {
+        List<String> sections = getAssignedSections();
+
+        Object currentSelection = sectionSelector.getSelectedItem();
+
+        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
+        model.addElement("All Sections");
+        for (String s : sections) {
+            model.addElement(s);
+        }
+
+        java.awt.event.ItemListener[] listeners = sectionSelector.getItemListeners();
+        for(java.awt.event.ItemListener l : listeners) sectionSelector.removeItemListener(l);
+
+        sectionSelector.setModel(model);
+
+        if (currentSelection != null && ((DefaultComboBoxModel<String>)model).getIndexOf(currentSelection) != -1) {
+            sectionSelector.setSelectedItem(currentSelection);
+        } else {
+            sectionSelector.setSelectedIndex(0);
+        }
+
+        for(java.awt.event.ItemListener l : listeners) sectionSelector.addItemListener(l);
     }
 
     private void loadSections() {
         listContainer.removeAll();
 
         List<String> mySections = getAssignedSections();
+        String selectedFilter = (String) sectionSelector.getSelectedItem();
+        boolean showAll = selectedFilter == null || selectedFilter.equals("All Sections");
 
         if (mySections.isEmpty()) {
             JLabel empty = new JLabel("You have no assigned sections.");
@@ -81,6 +128,10 @@ public class SectionView extends JPanel {
             listContainer.add(empty);
         } else {
             for (String secId : mySections) {
+                if (!showAll && !secId.equals(selectedFilter)) {
+                    continue;
+                }
+
                 try {
                     Section section = new Section(secId);
                     SectionPanel panel = new SectionPanel(section);
@@ -96,24 +147,27 @@ public class SectionView extends JPanel {
         listContainer.repaint();
     }
 
+    // --- KEY FIX: Read from 'sections' table, matching ID or Name ---
     private List<String> getAssignedSections() {
-        try {
-            List<String> sections = new ArrayList<>();
-            String sql = "SELECT section_id FROM teaching WHERE instructor_id = ?";
-            try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, instructor.getId());
-                ResultSet rs = stmt.executeQuery();
-                while(rs.next()) sections.add(rs.getString("section_id"));
-            }
-            return sections;
+        List<String> sections = new ArrayList<>();
+        // This query ignores the potentially out-of-sync 'teaching' table
+        String sql = "SELECT id FROM sections WHERE TRIM(instructor_id) = ? OR TRIM(instructor_id) = ?";
+
+        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, instructor.getId());
+            stmt.setString(2, instructor.getName()); // Also check name to be safe
+
+            ResultSet rs = stmt.executeQuery();
+            while(rs.next()) sections.add(rs.getString("id"));
+
         } catch (Exception e) {
             e.printStackTrace();
-            return new ArrayList<>();
         }
+        return sections;
     }
 
-    // --- Inner Class for Section Item ---
     private class SectionPanel extends JPanel {
         private final Section section;
         private final JPanel contentPanel;
@@ -129,7 +183,6 @@ public class SectionView extends JPanel {
                     new EmptyBorder(15, 20, 15, 20)
             ));
 
-            // Top Bar (Always Visible)
             JPanel topBar = new JPanel(new BorderLayout());
             topBar.setOpaque(false);
 
@@ -137,20 +190,17 @@ public class SectionView extends JPanel {
                     " <span style='color:#7f8c8d'> | " + section.getSemester() + "</span></html>";
             JLabel title = new JLabel(titleText);
 
-            // Buttons Container
             JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
             buttonsPanel.setOpaque(false);
 
-            // Existing Buttons
-//            StyledButton viewPolicyBtn = new StyledButton("View Policy", StyleConstants.SECONDARY_COLOR);
-//            viewPolicyBtn.setPreferredSize(new Dimension(100, 35));
-//            viewPolicyBtn.addActionListener(e -> showViewPolicyDialog());
+            StyledButton viewPolicyBtn = new StyledButton("View Policy", StyleConstants.SECONDARY_COLOR);
+            viewPolicyBtn.setPreferredSize(new Dimension(100, 35));
+            viewPolicyBtn.addActionListener(e -> showViewPolicyDialog());
 
             StyledButton editWeightsBtn = new StyledButton("Edit Weights", StyleConstants.SECONDARY_COLOR);
             editWeightsBtn.setPreferredSize(new Dimension(100, 35));
             editWeightsBtn.addActionListener(e -> showEditWeightsDialog());
 
-            // New Button: Edit Slabs
             StyledButton editSlabsBtn = new StyledButton("Edit Slabs", StyleConstants.SECONDARY_COLOR);
             editSlabsBtn.setPreferredSize(new Dimension(100, 35));
             editSlabsBtn.addActionListener(e -> showEditSlabsDialog());
@@ -159,18 +209,17 @@ public class SectionView extends JPanel {
             toggleBtn.setPreferredSize(new Dimension(120, 35));
             toggleBtn.addActionListener(e -> toggleExpansion());
 
-//            buttonsPanel.add(viewPolicyBtn);
+            buttonsPanel.add(viewPolicyBtn);
             buttonsPanel.add(Box.createHorizontalStrut(5));
             buttonsPanel.add(editWeightsBtn);
             buttonsPanel.add(Box.createHorizontalStrut(5));
-            buttonsPanel.add(editSlabsBtn); // Added here
+            buttonsPanel.add(editSlabsBtn);
             buttonsPanel.add(Box.createHorizontalStrut(10));
             buttonsPanel.add(toggleBtn);
 
             topBar.add(title, BorderLayout.WEST);
             topBar.add(buttonsPanel, BorderLayout.EAST);
 
-            // Content Panel (Hidden by default)
             contentPanel = new JPanel(new BorderLayout());
             contentPanel.setOpaque(false);
             contentPanel.setVisible(false);
@@ -238,7 +287,6 @@ public class SectionView extends JPanel {
                 table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
             }
 
-            // Fixed Button Renderer
             table.getColumnModel().getColumn(10).setCellRenderer(new ButtonRenderer());
             table.getColumnModel().getColumn(10).setCellEditor(new ButtonEditor(new JCheckBox(), rows, section.getId(), this));
 
@@ -277,11 +325,9 @@ public class SectionView extends JPanel {
             return list;
         }
 
-        // --- Dialogs ---
-
         private void showViewPolicyDialog() {
             JDialog d = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Grading Policy - " + section.getId(), true);
-            d.setSize(400, 400);
+            d.setSize(400, 450);
             d.setLocationRelativeTo(this);
             d.setLayout(new BorderLayout());
 
@@ -301,6 +347,7 @@ public class SectionView extends JPanel {
 
             p.add(Box.createVerticalStrut(20));
             p.add(new JLabel("<html><h3>Grading Slabs (Minimums)</h3></html>"));
+            p.add(new JLabel("O: " + section.getO()));
             p.add(new JLabel("A: " + section.getA() + " | A-: " + section.getA_()));
             p.add(new JLabel("B: " + section.getB() + " | B-: " + section.getB_()));
             p.add(new JLabel("C: " + section.getC() + " | C-: " + section.getC_()));
@@ -385,14 +432,15 @@ public class SectionView extends JPanel {
 
         private void showEditSlabsDialog() {
             JDialog d = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Edit Grading Slabs - " + section.getId(), true);
-            d.setSize(350, 480);
+            d.setSize(350, 520);
             d.setLocationRelativeTo(this);
             d.setLayout(new BorderLayout());
 
-            JPanel form = new JPanel(new GridLayout(8, 2, 10, 10));
+            JPanel form = new JPanel(new GridLayout(9, 2, 10, 10));
             form.setBorder(new EmptyBorder(20, 20, 20, 20));
             form.setBackground(Color.WHITE);
 
+            StyledField oF = new StyledField(String.valueOf(section.getO()));
             StyledField aF = new StyledField(String.valueOf(section.getA()));
             StyledField amF = new StyledField(String.valueOf(section.getA_()));
             StyledField bF = new StyledField(String.valueOf(section.getB()));
@@ -400,8 +448,12 @@ public class SectionView extends JPanel {
             StyledField cF = new StyledField(String.valueOf(section.getC()));
             StyledField cmF = new StyledField(String.valueOf(section.getC_()));
             StyledField dF = new StyledField(String.valueOf(section.getD()));
-            StyledField fF = new StyledField(String.valueOf(section.getF()));
 
+            StyledField fF = new StyledField("0.0");
+            fF.setEditable(false);
+            fF.setForeground(Color.GRAY);
+
+            form.add(new JLabel("O (>=):")); form.add(oF);
             form.add(new JLabel("A (>=):")); form.add(aF);
             form.add(new JLabel("A- (>=):")); form.add(amF);
             form.add(new JLabel("B (>=):")); form.add(bF);
@@ -414,6 +466,7 @@ public class SectionView extends JPanel {
             StyledButton save = new StyledButton("Save Slabs", StyleConstants.PRIMARY_COLOR);
             save.addActionListener(ev -> {
                 try {
+                    float o = Float.parseFloat(oF.getText());
                     float a = Float.parseFloat(aF.getText());
                     float am = Float.parseFloat(amF.getText());
                     float b = Float.parseFloat(bF.getText());
@@ -421,10 +474,11 @@ public class SectionView extends JPanel {
                     float c = Float.parseFloat(cF.getText());
                     float cm = Float.parseFloat(cmF.getText());
                     float dd = Float.parseFloat(dF.getText());
-                    float f = Float.parseFloat(fF.getText());
 
-                    // LOGICAL VALIDATION
-                    if (a > 100) throw new Exception("Grade A cannot require > 100.");
+                    float f = 0.0f;
+
+                    if (o > 100) throw new Exception("Grade O cannot require > 100.");
+                    if (o <= a) throw new Exception("O must be greater than A.");
                     if (a <= am) throw new Exception("A must be greater than A-.");
                     if (am <= b) throw new Exception("A- must be greater than B.");
                     if (b <= bm) throw new Exception("B must be greater than B-.");
@@ -432,8 +486,8 @@ public class SectionView extends JPanel {
                     if (c <= cm) throw new Exception("C must be greater than C-.");
                     if (cm <= dd) throw new Exception("C- must be greater than D.");
                     if (dd <= f) throw new Exception("D must be greater than F.");
-                    if (f < 0) throw new Exception("F cannot be negative.");
 
+//                    section.setO(o);
                     section.setA(a);
                     section.setA_(am);
                     section.setB(b);
@@ -463,7 +517,6 @@ public class SectionView extends JPanel {
         }
     }
 
-    // --- Data Holder ---
     private static class StudentGradeRow {
         String studentId, studentName;
         float lab, quiz, mid, end, asgn, proj, bonus;
@@ -474,7 +527,6 @@ public class SectionView extends JPanel {
         }
     }
 
-    // --- Table Button Renderer ---
     class ButtonRenderer extends JButton implements TableCellRenderer {
         public ButtonRenderer() {
             setOpaque(true);
@@ -496,7 +548,6 @@ public class SectionView extends JPanel {
         }
     }
 
-    // --- Table Button Editor ---
     class ButtonEditor extends DefaultCellEditor {
         protected JButton button;
         private String label;
@@ -504,7 +555,7 @@ public class SectionView extends JPanel {
         private String sectionId;
         private SectionPanel parentPanel;
         private List<StudentGradeRow> rows;
-        private JTable table; // Added field to capture table
+        private JTable table;
 
         public ButtonEditor(JCheckBox checkBox, List<StudentGradeRow> rows, String sectionId, SectionPanel parentPanel) {
             super(checkBox);
@@ -514,7 +565,6 @@ public class SectionView extends JPanel {
             button = new JButton();
             button.setOpaque(true);
 
-            // Apply EXACT styling of ButtonRenderer to avoid visual glitch
             button.setBackground(StyleConstants.ACCENT_COLOR);
             button.setForeground(Color.WHITE);
             button.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -525,14 +575,12 @@ public class SectionView extends JPanel {
             button.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
             button.addActionListener(e -> {
-                fireEditingStopped(); // Stop editing immediately on click
+                fireEditingStopped();
 
-                // Clear selection to fix the visual "highlight" bug
                 if (table != null) {
                     table.clearSelection();
                 }
 
-                // Invoke Dialog on a later swing event loop
                 SwingUtilities.invokeLater(() -> {
                     if (currentRowData != null) {
                         showEditDialog(currentRowData, sectionId, parentPanel.section);
@@ -543,7 +591,7 @@ public class SectionView extends JPanel {
 
         public Component getTableCellEditorComponent(JTable table, Object value,
                                                      boolean isSelected, int row, int column) {
-            this.table = table; // Capture table
+            this.table = table;
             label = (value == null) ? "Edit" : value.toString();
             button.setText(label);
 
@@ -558,7 +606,6 @@ public class SectionView extends JPanel {
         }
     }
 
-    // --- Edit Dialog ---
     private void showEditDialog(StudentGradeRow data, String sectionId, Section section) {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Edit Marks: " + data.studentName, true);
         dialog.setLayout(new BorderLayout());
@@ -600,7 +647,6 @@ public class SectionView extends JPanel {
                 float p = Float.parseFloat(projF.getText());
                 float b = Float.parseFloat(bonusF.getText());
 
-                // VALIDATION LOGIC
                 validateMark(l, section.getLabs(), "Labs");
                 validateMark(q, section.getQuiz(), "Quiz");
                 validateMark(m, section.getMidExams(), "Mid Exams");

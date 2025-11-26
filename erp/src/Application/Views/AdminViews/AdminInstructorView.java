@@ -360,15 +360,16 @@ public class AdminInstructorView extends JPanel {
         d.setVisible(true);
     }
 
-    // CHANGED: Query sections table instead of teaching table for synchronization
+    // --- ROBUST FIX: Check both ID and Name, and handle casing ---
     private void refreshAssignedSections(Instructor instructor, DefaultTableModel model) {
         model.setRowCount(0);
-        // OLD: String sql = "SELECT section_id FROM teaching WHERE instructor_id = ?";
-        // NEW: Use sections table as source of truth to match AdminSectionView
-        String sql = "SELECT id FROM sections WHERE instructor_id = ?";
+        // Updated query to check both ID and Name, and trim whitespace
+        String sql = "SELECT id FROM sections WHERE TRIM(instructor_id) = ? OR TRIM(instructor_id) = ?";
+
         try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
              PreparedStatement s = c.prepareStatement(sql)) {
             s.setString(1, instructor.getId());
+            s.setString(2, instructor.getName()); // Also check against name
             ResultSet rs = s.executeQuery();
             while (rs.next()) {
                 model.addRow(new Object[]{rs.getString("id"), "UNASSIGN"});
@@ -380,12 +381,12 @@ public class AdminInstructorView extends JPanel {
 
     private void assignSection(Instructor instructor, String sectionId, DefaultTableModel model) {
         try {
-            // 1. Update teaching table (keep for redundancy/legacy if needed, or purely rely on sections)
+            // 1. Update teaching table (keep for redundancy/legacy if needed)
             instructor.assignToSection(sectionId);
 
             // 2. Update sections table (Source of Truth)
             Section sec = new Section(sectionId);
-            sec.setInstructorId(instructor.getId());
+            sec.setInstructorId(instructor.getId()); // Set ID specifically
             sec.onPresistenceSave();
 
             refreshAssignedSections(instructor, model);
@@ -404,9 +405,14 @@ public class AdminInstructorView extends JPanel {
             s.setString(2, sectionId);
             s.executeUpdate();
 
-            // 2. Update sections table (Source of Truth)
+            // 2. Update sections table (Sync Fix)
             Section sec = new Section(sectionId);
-            if (sec.getInstructorId() != null && sec.getInstructorId().equals(instructor.getId())) {
+            // Check both ID and Name to be sure we catch the ownership
+            boolean isOwner = (sec.getInstructorId() != null) &&
+                    (sec.getInstructorId().equals(instructor.getId()) ||
+                            sec.getInstructorId().equals(instructor.getName()));
+
+            if (isOwner) {
                 sec.setInstructorId("Unassigned");
                 sec.onPresistenceSave();
             }

@@ -44,5 +44,7 @@
         <SOURCES />
       </library>
     </orderEntry>
+    <orderEntry type="library" name="realityforge.jetbrains.annotations1" level="project" />
+    <orderEntry type="library" name="junit.jupiter.engine" level="project" />
   </component>
 </module>

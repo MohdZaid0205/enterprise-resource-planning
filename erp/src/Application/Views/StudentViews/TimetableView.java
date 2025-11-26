@@ -1,6 +1,7 @@
 package Application.Views.StudentViews;
 
 import Application.Components.StyleConstants;
+import Application.Components.StyledComboBox; // Import added
 import Domain.Concretes.Course;
 import Domain.Concretes.Section;
 import Domain.Concretes.Student;
@@ -9,6 +10,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
 import java.awt.*;
+import java.awt.event.ItemEvent; // Import added
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,11 +18,12 @@ import java.util.Map;
 public class TimetableView extends JPanel {
 
     private final Student student;
-    private final String currentSemester;
+    private String currentSemester; // Removed final to allow updates
     private final JPanel scheduleGrid;
+    private final StyledComboBox<String> semesterCombo; // Added dropdown
 
-    private static final int START_HOUR = 8; // 8 AM
-    private static final int END_HOUR = 18;  // 6 PM
+    private static final int START_HOUR = 8;
+    private static final int END_HOUR = 18;
     private static final String[] DAYS = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday"};
 
     public TimetableView(Student student, String currentSemester) {
@@ -39,12 +42,33 @@ public class TimetableView extends JPanel {
         title.setFont(StyleConstants.HEADER_FONT);
         title.setForeground(StyleConstants.WHITE);
 
-        JLabel subtitle = new JLabel("Semester: " + currentSemester);
-        subtitle.setFont(StyleConstants.NORMAL_FONT);
-        subtitle.setForeground(new Color(200, 200, 255));
+        // --- Semester Selector Logic ---
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        controlPanel.setOpaque(false);
 
-        headerPanel.add(title, BorderLayout.NORTH);
-        headerPanel.add(subtitle, BorderLayout.SOUTH);
+        JLabel semLabel = new JLabel("Semester: ");
+        semLabel.setFont(StyleConstants.NORMAL_FONT);
+        semLabel.setForeground(new Color(200, 200, 255));
+
+        String[] sems = {"Fall 2025", "Spring 2025"};
+        semesterCombo = new StyledComboBox<>(sems);
+        semesterCombo.setPreferredSize(new Dimension(150, 35));
+
+        // Set initial selection based on passed semester (simple logic)
+        if(currentSemester.toUpperCase().contains("SPRING")) semesterCombo.setSelectedItem("Spring 2025");
+        else semesterCombo.setSelectedItem("Fall 2025");
+
+        semesterCombo.addItemListener(e -> {
+            if(e.getStateChange() == ItemEvent.SELECTED) {
+                refresh();
+            }
+        });
+
+        controlPanel.add(semLabel);
+        controlPanel.add(semesterCombo);
+
+        headerPanel.add(title, BorderLayout.WEST);
+        headerPanel.add(controlPanel, BorderLayout.EAST);
         add(headerPanel, BorderLayout.NORTH);
 
         scheduleGrid = new JPanel(new GridBagLayout());
@@ -59,6 +83,12 @@ public class TimetableView extends JPanel {
     }
 
     public void refresh() {
+        // Update current semester based on selection
+        String selected = (String) semesterCombo.getSelectedItem();
+        if(selected != null) {
+            this.currentSemester = selected.toUpperCase().replace(" ", "_");
+        }
+
         scheduleGrid.removeAll();
         buildGrid();
         loadData();
@@ -122,8 +152,8 @@ public class TimetableView extends JPanel {
     }
 
     private void loadData() {
+        // Use the updated currentSemester for fetching data
         Map<String, List<Section.TimeSlot>> schedule = student.getWeeklySchedule(currentSemester);
-
         Map<String, String> courseNameCache = new HashMap<>();
 
         for (Map.Entry<String, List<Section.TimeSlot>> entry : schedule.entrySet()) {
@@ -147,7 +177,6 @@ public class TimetableView extends JPanel {
     }
 
     private void addBlockToGrid(Section.TimeSlot slot, String courseName, String sectionId) {
-
         int colIndex = -1;
         for (int i = 0; i < DAYS.length; i++) {
             if (DAYS[i].equalsIgnoreCase(slot.day)) {
@@ -156,6 +185,7 @@ public class TimetableView extends JPanel {
             }
         }
         if (colIndex == -1) return;
+
         int startH = 0;
         try {
             startH = Integer.parseInt(slot.startTime.split(":")[0]);
@@ -184,13 +214,12 @@ public class TimetableView extends JPanel {
         gbc.weightx = 1.0;
         gbc.weighty = 1.0;
         gbc.fill = GridBagConstraints.BOTH;
-        gbc.insets = new Insets(1, 1, 1, 1); // Tiny gap
+        gbc.insets = new Insets(1, 1, 1, 1);
 
         int rowSpan = (int) Math.ceil(slot.durationMins / 60.0);
         gbc.gridheight = Math.max(1, rowSpan);
 
         scheduleGrid.add(block, gbc);
-
         scheduleGrid.setComponentZOrder(block, 0);
     }
 }

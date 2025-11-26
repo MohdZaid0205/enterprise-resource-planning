@@ -83,7 +83,7 @@ public class Student extends Domain.Abstracts.UserEntity {
                         schedule.put(sectionId, timetable.slots);
                     }
                 } catch (Exception e) {
-                    // ignore
+                    e.printStackTrace();
                 }
             }
         }

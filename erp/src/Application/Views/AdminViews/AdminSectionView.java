@@ -1,6 +1,7 @@
 package Application.Views.AdminViews;
 
 import Application.Components.*;
+import Domain.Abstracts.UserEntity;
 import Domain.Concretes.Course;
 import Domain.Concretes.Instructor;
 import Domain.Concretes.Section;
@@ -101,7 +102,7 @@ public class AdminSectionView extends JPanel {
     private void openEditDialog(Section existing) {
         JDialog d = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
                 existing == null ? "Create Section" : "Edit Section", true);
-        d.setSize(450, 700);
+        d.setSize(500, 750); // Increased height for buttons
         d.setLocationRelativeTo(this);
 
         JPanel mainPanel = new JPanel();
@@ -128,11 +129,11 @@ public class AdminSectionView extends JPanel {
 
         StyledField instF = new StyledField("Instructor ID");
         instF.setEditable(false);
-        instF.setPreferredSize(new Dimension(200, 40)); // Give field specific size
+        instF.setPreferredSize(new Dimension(200, 40));
 
         StyledButton assignInstBtn = new StyledButton("Select", StyleConstants.SECONDARY_COLOR);
         assignInstBtn.setPreferredSize(new Dimension(80, 40));
-        assignInstBtn.setMaximumSize(new Dimension(80, 40)); // Lock button size
+        assignInstBtn.setMaximumSize(new Dimension(80, 40));
 
         assignInstBtn.addActionListener(e -> {
             String selectedInst = openInstructorSelector(d);
@@ -142,13 +143,13 @@ public class AdminSectionView extends JPanel {
         });
 
         instrPanel.add(instF);
-        instrPanel.add(Box.createHorizontalStrut(10)); // Spacing
+        instrPanel.add(Box.createHorizontalStrut(10));
         instrPanel.add(assignInstBtn);
 
         Dimension fieldDim = new Dimension(350, 45);
         idF.setMaximumSize(fieldDim); nameF.setMaximumSize(fieldDim);
         courseCombo.setMaximumSize(fieldDim);
-        instrPanel.setMaximumSize(new Dimension(350, 45)); // Constrain panel height
+        instrPanel.setMaximumSize(new Dimension(350, 45));
         semF.setMaximumSize(fieldDim); capF.setMaximumSize(fieldDim);
 
         if (existing != null) {
@@ -181,13 +182,21 @@ public class AdminSectionView extends JPanel {
         gbc.fill = GridBagConstraints.NONE;
         gbc.weightx = 0;
 
-        StyledButton save = new StyledButton("Save Changes", StyleConstants.PRIMARY_COLOR);
-        save.setPreferredSize(new Dimension(140, 40));
+        StyledButton save = new StyledButton("Save", StyleConstants.PRIMARY_COLOR);
+        save.setPreferredSize(new Dimension(100, 40));
 
         gbc.gridx = 0;
         btnPanel.add(save, gbc);
 
         if (existing != null) {
+            // Timetable Button
+            StyledButton timeBtn = new StyledButton("Timetable", StyleConstants.SECONDARY_COLOR);
+            timeBtn.setPreferredSize(new Dimension(100, 40));
+            timeBtn.addActionListener(e -> openTimetableManager(existing));
+            gbc.gridx = 1;
+            btnPanel.add(timeBtn, gbc);
+
+            // Delete Button
             StyledButton deleteBtn = new StyledButton("Delete", StyleConstants.RED);
             deleteBtn.setPreferredSize(new Dimension(100, 40));
             deleteBtn.addActionListener(e -> {
@@ -206,8 +215,7 @@ public class AdminSectionView extends JPanel {
                     }
                 }
             });
-
-            gbc.gridx = 1;
+            gbc.gridx = 2;
             btnPanel.add(deleteBtn, gbc);
         }
 
@@ -226,9 +234,7 @@ public class AdminSectionView extends JPanel {
                 }
 
                 int cap = Integer.parseInt(capStr);
-
-                if (cap < 1)
-                    throw new ArithmeticException("capacity must be greater than 0.");
+                if (cap < 1) throw new ArithmeticException("Capacity must be > 0");
 
                 if (existing == null) {
                     Section s = new Section(sid, name, cid, iid, sem, cap, 0);
@@ -239,7 +245,6 @@ public class AdminSectionView extends JPanel {
                     existing.setSemester(sem);
                     existing.setCapacity(cap);
                     existing.onPresistenceSave();
-
                     updateSectionCourseId(sid, cid);
                 }
                 d.dispose();
@@ -270,6 +275,97 @@ public class AdminSectionView extends JPanel {
         panel.add(Box.createVerticalStrut(5));
         panel.add(comp);
         panel.add(Box.createVerticalStrut(15));
+    }
+
+    private void openTimetableManager(Section section) {
+        JDialog d = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
+                "Manage Timetable: " + section.getId(), true);
+        d.setSize(600, 500);
+        d.setLocationRelativeTo(this);
+        d.setLayout(new BorderLayout());
+
+        // --- List Existing Slots ---
+        String[] cols = {"Day", "Start", "Duration (m)", "Room", "Action"};
+        DefaultTableModel tModel = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int row, int col) { return false; }
+        };
+        StyledTable tTable = new StyledTable(cols, new Object[][]{});
+        tTable.setModel(tModel);
+
+        // Load current slots
+        List<Section.TimeSlot> slots = section.getTimetable();
+        for(Section.TimeSlot ts : slots) {
+            tModel.addRow(new Object[]{ts.day, ts.startTime, ts.durationMins, ts.room, "REMOVE"});
+        }
+
+        tTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int row = tTable.rowAtPoint(e.getPoint());
+                int col = tTable.columnAtPoint(e.getPoint());
+                if(row >= 0 && col == 4) { // Remove
+                    slots.remove(row);
+                    try {
+                        section.updateTimetable(slots, UserEntity.Permission.PERMISSION_ADMIN);
+                        tModel.removeRow(row);
+                    } catch(Exception ex) { ex.printStackTrace(); }
+                }
+            }
+        });
+
+        JScrollPane scroll = new JScrollPane(tTable);
+        scroll.setBorder(BorderFactory.createTitledBorder("Current Slots"));
+
+        JPanel addPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        addPanel.setBackground(StyleConstants.WHITE);
+        addPanel.setBorder(BorderFactory.createTitledBorder("Add Slot"));
+
+        String[] days = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday"};
+        StyledComboBox<String> dayBox = new StyledComboBox<>(days);
+
+        StyledField startF = new StyledField("Start (HH:MM)");
+        startF.setPreferredSize(new Dimension(100, 40));
+
+        StyledField durF = new StyledField("Mins");
+        durF.setPreferredSize(new Dimension(60, 40));
+
+        StyledField roomF = new StyledField("Room");
+        roomF.setPreferredSize(new Dimension(80, 40));
+
+        StyledButton addBtn = new StyledButton("Add", StyleConstants.GREEN);
+        addBtn.setPreferredSize(new Dimension(70, 40));
+
+        addBtn.addActionListener(e -> {
+            try {
+                String dStr = (String) dayBox.getSelectedItem();
+                String tStr = startF.getText().trim();
+                int min = Integer.parseInt(durF.getText().trim());
+                String rStr = roomF.getText().trim();
+
+                if(!tStr.matches("\\d{2}:\\d{2}")) throw new Exception("Invalid Time Format (HH:MM)");
+
+                slots.add(new Section.TimeSlot(dStr, tStr, min, rStr));
+                section.updateTimetable(slots, UserEntity.Permission.PERMISSION_ADMIN);
+
+                // Refresh table
+                tModel.setRowCount(0);
+                for(Section.TimeSlot ts : slots) {
+                    tModel.addRow(new Object[]{ts.day, ts.startTime, ts.durationMins, ts.room, "REMOVE"});
+                }
+            } catch(Exception ex) {
+                JOptionPane.showMessageDialog(d, "Error: " + ex.getMessage());
+            }
+        });
+
+        addPanel.add(dayBox);
+        addPanel.add(startF);
+        addPanel.add(durF);
+        addPanel.add(roomF);
+        addPanel.add(addBtn);
+
+        d.add(scroll, BorderLayout.CENTER);
+        d.add(addPanel, BorderLayout.SOUTH);
+        d.setVisible(true);
     }
 
     private String openInstructorSelector(JDialog parent) {

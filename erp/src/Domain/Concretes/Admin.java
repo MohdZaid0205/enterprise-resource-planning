@@ -110,6 +110,7 @@ public class Admin extends Domain.Abstracts.UserEntity {
         }
 
         @Override public void ReadFromDatabase() throws SQLException {
+            CreateTable();
             try(Connection c=sqliteConnector.connect(database);
                 PreparedStatement s=c.prepareStatement(selectSql)){
                 s.setString(1, getId());

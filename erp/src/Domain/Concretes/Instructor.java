@@ -200,6 +200,7 @@ public class Instructor extends Domain.Abstracts.UserEntity {
         }
         @Override public void ReadFromDatabase() throws SQLException
         {
+            CreateTable();
             mySections.clear();
             try(Connection c=sqliteConnector.connect(database);
                 PreparedStatement s=c.prepareStatement(selectSql)){

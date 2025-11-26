@@ -120,6 +120,7 @@ public class Section extends ResourceEntity {
             }
         }
         @Override public void ReadFromDatabase() throws SQLException {
+            CreateTable();
             slots.clear();
             try(Connection c=sqliteConnector.connect(database);
                 PreparedStatement s=c.prepareStatement(selectSql)){

@@ -2,6 +2,7 @@ package Application.Views.StudentViews;
 
 import Application.Components.StyleConstants;
 import Application.Components.StyledTable;
+import Domain.Concretes.Course;
 import Domain.Concretes.Section;
 import Domain.Concretes.Student;
 import Domain.Database.sqliteConnector;
@@ -227,19 +228,14 @@ public class MyCoursesView extends JPanel {
         return "F";
     }
     private int getCreditsForSection(String sectionId) {
-        String courseIdCandidate = sectionId;
-        if(sectionId.startsWith("SEC_")) {
-            String[] parts = sectionId.split("_");
-            if(parts.length >= 2) courseIdCandidate = parts[1];
+        try {
+            Section section = new Section(sectionId);
+            Course course = new Course(section.getCourseId());
+            return course.getCredits();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        String sql = "SELECT credits FROM courses WHERE id = ?";
-        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:courses.db");
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, courseIdCandidate);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) return rs.getInt("credits");
-        } catch (SQLException e) { /* Fallback */ }
-        return 3;
+        return 0;
     }
     private List<String> getSemestersFromDB() {
         List<String> sems = new ArrayList<>();

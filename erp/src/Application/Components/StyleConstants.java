@@ -15,7 +15,7 @@ public class StyleConstants {
     public static final Color ACCENT_COLOR_ALPHA  = new Color(50, 50, 150, 155);
 
 
-    public static final Color GREEN = new Color(100, 255, 100);
+    public static final Color GREEN = new Color(100, 175, 100);
     public static final Color RED = new Color(255, 100, 100);
 
     public static final Color WHITE         = Color.WHITE;

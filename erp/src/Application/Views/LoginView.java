@@ -170,6 +170,8 @@ public class LoginView extends JFrame {
                         dispose();
                         if (user instanceof Student) {
                             new StudentDashboard((Student) user).setVisible(true);
+                        } else if (user instanceof Admin) {
+                            new AdminDashboard((Admin) user).setVisible(true);
                         } else {
                             JOptionPane.showMessageDialog(null, "Welcome " + user.getName() + " (" + type + ")");
                         }

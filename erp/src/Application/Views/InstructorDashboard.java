@@ -2,8 +2,9 @@ package Application.Views;
 
 import Application.Components.StyleConstants;
 import Application.Components.StyledButton;
+import Application.Views.InstructorViews.CourseStatisticsView;
+import Application.Views.InstructorViews.GradebookView;
 import Application.Views.InstructorViews.SectionView;
-import Application.Views.InstructorViews.CourseStatisticsView; // Import the new view
 import Domain.Concretes.Instructor;
 
 import javax.swing.*;
@@ -31,13 +32,10 @@ public class InstructorDashboard extends JFrame {
         contentArea = new JPanel(new CardLayout());
         contentArea.setBackground(StyleConstants.WHITE);
 
-        // 1. Sections Management View
         contentArea.add(new SectionView(instructor), "SECTIONS");
 
-        // 2. Placeholder for Gradebook (or you can reuse SectionView if it serves both purposes)
-        contentArea.add(createPlaceholderPanel("Detailed Gradebook"), "GRADING");
+        contentArea.add(new GradebookView(instructor), "GRADING");
 
-        // 3. UPDATED: Course Statistics View
         contentArea.add(new CourseStatisticsView(instructor), "STATS");
 
         add(contentArea, BorderLayout.CENTER);
@@ -165,15 +163,5 @@ public class InstructorDashboard extends JFrame {
         });
 
         return btn;
-    }
-
-    private JPanel createPlaceholderPanel(String title) {
-        JPanel p = new JPanel(new GridBagLayout());
-        p.setBackground(StyleConstants.WHITE);
-        JLabel l = new JLabel(title + " - Coming Soon");
-        l.setFont(new Font("Segoe UI", Font.BOLD, 24));
-        l.setForeground(Color.GRAY);
-        p.add(l);
-        return p;
     }
 }

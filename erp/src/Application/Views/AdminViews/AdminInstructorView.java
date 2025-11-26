@@ -360,10 +360,8 @@ public class AdminInstructorView extends JPanel {
         d.setVisible(true);
     }
 
-    // --- ROBUST FIX: Check both ID and Name, and handle casing ---
     private void refreshAssignedSections(Instructor instructor, DefaultTableModel model) {
         model.setRowCount(0);
-        // Updated query to check both ID and Name, and trim whitespace
         String sql = "SELECT id FROM sections WHERE TRIM(instructor_id) = ? OR TRIM(instructor_id) = ?";
 
         try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
@@ -381,10 +379,8 @@ public class AdminInstructorView extends JPanel {
 
     private void assignSection(Instructor instructor, String sectionId, DefaultTableModel model) {
         try {
-            // 1. Update teaching table (keep for redundancy/legacy if needed)
             instructor.assignToSection(sectionId);
 
-            // 2. Update sections table (Source of Truth)
             Section sec = new Section(sectionId);
             sec.setInstructorId(instructor.getId()); // Set ID specifically
             sec.onPresistenceSave();
@@ -397,7 +393,6 @@ public class AdminInstructorView extends JPanel {
     }
 
     private void unassignSection(Instructor instructor, String sectionId, DefaultTableModel model) {
-        // 1. Remove from teaching table
         String sql = "DELETE FROM teaching WHERE instructor_id = ? AND section_id = ?";
         try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
              PreparedStatement s = c.prepareStatement(sql)) {
@@ -405,9 +400,7 @@ public class AdminInstructorView extends JPanel {
             s.setString(2, sectionId);
             s.executeUpdate();
 
-            // 2. Update sections table (Sync Fix)
             Section sec = new Section(sectionId);
-            // Check both ID and Name to be sure we catch the ownership
             boolean isOwner = (sec.getInstructorId() != null) &&
                     (sec.getInstructorId().equals(instructor.getId()) ||
                             sec.getInstructorId().equals(instructor.getName()));

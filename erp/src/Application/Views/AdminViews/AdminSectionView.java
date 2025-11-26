@@ -76,7 +76,6 @@ public class AdminSectionView extends JPanel {
         refreshData();
     }
 
-    // CHANGED FROM PRIVATE TO PUBLIC
     public void refreshData() {
         model.setRowCount(0);
         List<String> ids = new ArrayList<>();
@@ -189,14 +188,12 @@ public class AdminSectionView extends JPanel {
         btnPanel.add(save, gbc);
 
         if (existing != null) {
-            // Timetable Button
             StyledButton timeBtn = new StyledButton("Timetable", StyleConstants.SECONDARY_COLOR);
             timeBtn.setPreferredSize(new Dimension(100, 40));
             timeBtn.addActionListener(e -> openTimetableManager(existing));
             gbc.gridx = 1;
             btnPanel.add(timeBtn, gbc);
 
-            // Delete Button
             StyledButton deleteBtn = new StyledButton("Delete", StyleConstants.RED);
             deleteBtn.setPreferredSize(new Dimension(100, 40));
             deleteBtn.addActionListener(e -> {
@@ -320,7 +317,6 @@ public class AdminSectionView extends JPanel {
                     slots.remove(row);
                     try {
                         section.updateTimetable(slots, Application.Views.AdminViews.AdminSectionView.this.model == null ? Domain.Abstracts.UserEntity.Permission.PERMISSION_ADMIN : Domain.Abstracts.UserEntity.Permission.PERMISSION_ADMIN);
-                        // Note: Passed permission directly from enum in loop logic
                         tModel.removeRow(row);
                     } catch(Exception ex) { ex.printStackTrace(); }
                 }

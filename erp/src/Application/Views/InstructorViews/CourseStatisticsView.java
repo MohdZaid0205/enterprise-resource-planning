@@ -33,7 +33,6 @@ public class CourseStatisticsView extends JPanel {
         setBackground(StyleConstants.TERTIARY_COLOR);
         setBorder(new EmptyBorder(20, 20, 20, 20));
 
-        // --- Header ---
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT));
         header.setOpaque(false);
         header.setBorder(new EmptyBorder(0, 0, 20, 0));
@@ -49,7 +48,6 @@ public class CourseStatisticsView extends JPanel {
         header.add(Box.createHorizontalStrut(20));
         header.add(refreshBtn);
 
-        // --- Content Scroll Area ---
         listContainer = new JPanel();
         listContainer.setLayout(new BoxLayout(listContainer, BoxLayout.Y_AXIS));
         listContainer.setBackground(StyleConstants.DIM_WHITE);
@@ -96,23 +94,24 @@ public class CourseStatisticsView extends JPanel {
     }
 
     private List<String> getAssignedSections() {
-        try {
-            List<String> sections = new ArrayList<>();
-            String sql = "SELECT section_id FROM teaching WHERE instructor_id = ?";
-            try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, instructor.getId());
-                ResultSet rs = stmt.executeQuery();
-                while(rs.next()) sections.add(rs.getString("section_id"));
-            }
-            return sections;
+        List<String> sections = new ArrayList<>();
+        String sql = "SELECT id FROM sections WHERE TRIM(instructor_id) = ? OR TRIM(instructor_id) = ?";
+
+        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, instructor.getId());
+            stmt.setString(2, instructor.getName());
+
+            ResultSet rs = stmt.executeQuery();
+            while(rs.next()) sections.add(rs.getString("id"));
+
         } catch (Exception e) {
             e.printStackTrace();
-            return new ArrayList<>();
         }
+        return sections;
     }
 
-    // --- Inner Class for Section Statistics ---
     private class StatsPanel extends JPanel {
         private final Section section;
         private final JPanel contentPanel;
@@ -131,7 +130,6 @@ public class CourseStatisticsView extends JPanel {
                     new EmptyBorder(15, 20, 15, 20)
             ));
 
-            // Top Bar
             JPanel topBar = new JPanel(new BorderLayout());
             topBar.setOpaque(false);
 
@@ -147,7 +145,6 @@ public class CourseStatisticsView extends JPanel {
             topBar.add(title, BorderLayout.WEST);
             topBar.add(toggleBtn, BorderLayout.EAST);
 
-            // Content Panel
             contentPanel = new JPanel();
             contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
             contentPanel.setOpaque(false);
@@ -182,7 +179,6 @@ public class CourseStatisticsView extends JPanel {
                 return;
             }
 
-            // 1. Key Metrics Cards
             JPanel metricsPanel = new JPanel(new GridLayout(1, 4, 15, 0));
             metricsPanel.setOpaque(false);
             metricsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -201,7 +197,6 @@ public class CourseStatisticsView extends JPanel {
             contentPanel.add(metricsPanel);
             contentPanel.add(Box.createVerticalStrut(25));
 
-            // 2. Grade Distribution
             JLabel gradeTitle = new JLabel("Grade Distribution");
             gradeTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
             gradeTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -213,14 +208,12 @@ public class CourseStatisticsView extends JPanel {
             contentPanel.add(gradesPanel);
             contentPanel.add(Box.createVerticalStrut(25));
 
-            // 3. Score Chart
             JLabel chartTitle = new JLabel("Score Distribution Histogram");
             chartTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
             chartTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
             contentPanel.add(chartTitle);
             contentPanel.add(Box.createVerticalStrut(10));
 
-            // Pass avg and median to graph
             ScoreDistributionGraph graph = new ScoreDistributionGraph(totalScores, avg, median);
             graph.setAlignmentX(Component.LEFT_ALIGNMENT);
             contentPanel.add(graph);
@@ -333,12 +326,11 @@ public class CourseStatisticsView extends JPanel {
         }
     }
 
-    // --- Custom Histogram Component ---
     private static class ScoreDistributionGraph extends JPanel {
         private final List<Float> data;
         private final int[] bins;
         private final int binSize = 10;
-        private final int numBins = 11; // 0-9, 10-19, ..., 90-99, 100+
+        private final int numBins = 11;
         private final float average;
         private final float median;
 
@@ -378,30 +370,24 @@ public class CourseStatisticsView extends JPanel {
             int graphW = w - padding - leftPad;
             int graphH = h - padding - bottomPad;
 
-            // Draw Axes
             g2.setColor(Color.LIGHT_GRAY);
-            g2.drawLine(leftPad, h - bottomPad, w - padding, h - bottomPad); // X-Axis
-            g2.drawLine(leftPad, padding, leftPad, h - bottomPad); // Y-Axis
+            g2.drawLine(leftPad, h - bottomPad, w - padding, h - bottomPad);
+            g2.drawLine(leftPad, padding, leftPad, h - bottomPad);
 
-            // Labels
             g2.setColor(Color.DARK_GRAY);
             g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
 
-            // Y-Axis Label
             AffineTransform orig = g2.getTransform();
             g2.rotate(-Math.PI / 2);
             g2.drawString("Student Count", -h/2 - 40, 20);
             g2.setTransform(orig);
 
-            // X-Axis Label
             g2.drawString("Score Range", w/2 - 30, h - 10);
 
-            // Calculate Max Y for scaling
             int maxCount = 0;
             for (int count : bins) maxCount = Math.max(maxCount, count);
             if (maxCount == 0) maxCount = 1; // Prevent div/0
 
-            // Draw Bars
             int barWidth = graphW / numBins;
             g2.setFont(new Font("Segoe UI", Font.PLAIN, 10));
 
@@ -412,19 +398,16 @@ public class CourseStatisticsView extends JPanel {
                 int x = leftPad + (i * barWidth);
                 int y = h - bottomPad - barHeight;
 
-                // Bar
                 if (count > 0) {
                     g2.setColor(new Color(100, 149, 237));
                     g2.fill(new Rectangle2D.Float(x + 2, y, barWidth - 4, barHeight));
 
-                    // Count Label Top
                     g2.setColor(Color.BLACK);
                     String countStr = String.valueOf(count);
                     int strW = g2.getFontMetrics().stringWidth(countStr);
                     g2.drawString(countStr, x + (barWidth - strW) / 2, y - 5);
                 }
 
-                // X-Axis Tick Label
                 g2.setColor(Color.GRAY);
                 String range;
                 if (i == numBins - 1) range = "100+";
@@ -434,7 +417,6 @@ public class CourseStatisticsView extends JPanel {
                 g2.drawString(range, x + (barWidth - rangeW) / 2, h - bottomPad + 15);
             }
 
-            // Y-Axis Ticks
             for (int i = 0; i <= maxCount; i++) {
                 int y = h - bottomPad - (int)(((double)i / maxCount) * (graphH - 20));
                 g2.setColor(new Color(230, 230, 230));
@@ -444,9 +426,7 @@ public class CourseStatisticsView extends JPanel {
                 g2.drawString(String.valueOf(i), leftPad - 20, y + 5);
             }
 
-            // --- Draw Average & Median Lines ---
 
-            // 1. Calculate X Positions
             float maxAxisVal = numBins * 10.0f; // 110
 
             int xAvg = leftPad + (int) ((average / maxAxisVal) * graphW);
@@ -455,11 +435,9 @@ public class CourseStatisticsView extends JPanel {
             int xMed = leftPad + (int) ((median / maxAxisVal) * graphW);
             if (xMed > leftPad + graphW) xMed = leftPad + graphW;
 
-            // 2. Draw Lines (without labels attached)
             drawDottedLine(g2, xAvg, Color.MAGENTA, h, bottomPad);
             drawDottedLine(g2, xMed, new Color(255, 140, 0), h, bottomPad);
 
-            // 3. Draw Legend in Top Right
             drawLegend(g2, w - padding, padding);
         }
 
@@ -483,19 +461,16 @@ public class CourseStatisticsView extends JPanel {
             int x = rightX - boxW;
             int y = topY;
 
-            // Background for legend
             g2.setColor(new Color(255, 255, 255, 220));
             g2.fillRect(x, y, boxW, boxH);
             g2.setColor(new Color(200, 200, 200));
             g2.drawRect(x, y, boxW, boxH);
 
-            // Draw Avg Key
             g2.setColor(Color.MAGENTA);
             g2.fillRect(x + 10, y + 15, 10, 10); // Color square
             g2.setColor(Color.DARK_GRAY);
             g2.drawString(avgText, x + 25, y + 25);
 
-            // Draw Med Key
             g2.setColor(new Color(255, 140, 0));
             g2.fillRect(x + 10, y + 35, 10, 10); // Color square
             g2.setColor(Color.DARK_GRAY);

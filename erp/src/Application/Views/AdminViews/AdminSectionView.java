@@ -1,9 +1,11 @@
 package Application.Views.AdminViews;
 
 import Application.Components.*;
+import Domain.Concretes.Course;
 import Domain.Concretes.Instructor;
 import Domain.Concretes.Section;
 import Domain.Database.sqliteConnector;
+import Domain.Rules.ApplicationRules;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -14,6 +16,7 @@ import java.awt.event.MouseEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,6 +24,8 @@ public class AdminSectionView extends JPanel {
 
     private StyledTable table;
     private DefaultTableModel model;
+    private StyledComboBox<String> activeSemCombo;
+    private StyledField deadlineField;
 
     public AdminSectionView() {
         setLayout(new BorderLayout());
@@ -73,7 +78,59 @@ public class AdminSectionView extends JPanel {
         scroll.getViewport().setBackground(StyleConstants.WHITE);
         add(scroll, BorderLayout.CENTER);
 
+        add(createRulesPanel(), BorderLayout.SOUTH);
+
         refreshData();
+    }
+
+    private JPanel createRulesPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 10));
+        panel.setBackground(StyleConstants.TERTIARY_COLOR);
+        panel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(255,255,255,50)));
+
+        JLabel semLabel = new JLabel("Active Semester:");
+        semLabel.setForeground(Color.WHITE);
+        semLabel.setFont(StyleConstants.NORMAL_FONT);
+
+        activeSemCombo = new StyledComboBox<>(getAllSemesters());
+        activeSemCombo.setPreferredSize(new Dimension(150, 35));
+
+        String currentRuleSem = ApplicationRules.getCurrentSemester();
+        if(currentRuleSem != null) activeSemCombo.setSelectedItem(currentRuleSem);
+
+        JLabel dateLabel = new JLabel("Add/Drop Deadline (YYYY-MM-DD):");
+        dateLabel.setForeground(Color.WHITE);
+        dateLabel.setFont(StyleConstants.NORMAL_FONT);
+
+        deadlineField = new StyledField("YYYY-MM-DD");
+        deadlineField.setPreferredSize(new Dimension(120, 35));
+        String currentDeadline = ApplicationRules.getAddDropDeadline();
+        if(currentDeadline != null) deadlineField.setText(currentDeadline);
+
+        StyledButton saveRulesBtn = new StyledButton("Update Rules", StyleConstants.SECONDARY_COLOR);
+        saveRulesBtn.setPreferredSize(new Dimension(120, 35));
+        saveRulesBtn.addActionListener(e -> {
+            String sem = (String) activeSemCombo.getSelectedItem();
+            String date = deadlineField.getText().trim();
+
+            if(sem != null && !date.isEmpty()) {
+                if(!date.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                    JOptionPane.showMessageDialog(this, "Invalid Date Format. Use YYYY-MM-DD");
+                    return;
+                }
+                ApplicationRules.setCurrentSemester(sem);
+                ApplicationRules.setAddDropDeadline(date);
+                JOptionPane.showMessageDialog(this, "Semester Rules Updated.");
+            }
+        });
+
+        panel.add(semLabel);
+        panel.add(activeSemCombo);
+        panel.add(dateLabel);
+        panel.add(deadlineField);
+        panel.add(saveRulesBtn);
+
+        return panel;
     }
 
     public void refreshData() {
@@ -98,10 +155,19 @@ public class AdminSectionView extends JPanel {
         }
     }
 
+    private String[] getAllSemesters() {
+        List<String> sems = new ArrayList<>();
+        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
+             ResultSet rs = c.createStatement().executeQuery("SELECT DISTINCT semester FROM sections")) {
+            while(rs.next()) sems.add(rs.getString("semester"));
+        } catch (Exception e) { e.printStackTrace(); }
+        return sems.toArray(new String[0]);
+    }
+
     private void openEditDialog(Section existing) {
         JDialog d = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
                 existing == null ? "Create Section" : "Edit Section", true);
-        d.setSize(500, 750);
+        d.setSize(450, 700);
         d.setLocationRelativeTo(this);
 
         JPanel mainPanel = new JPanel();
@@ -203,7 +269,6 @@ public class AdminSectionView extends JPanel {
 
                 if (confirm == JOptionPane.YES_OPTION) {
                     try {
-                        removeFromTeachingTable(existing.getInstructorId(), existing.getId());
                         existing.onPresistenceDelete();
                         d.dispose();
                         refreshData();
@@ -232,32 +297,19 @@ public class AdminSectionView extends JPanel {
                 }
 
                 int cap = Integer.parseInt(capStr);
-                if (cap < 1) throw new ArithmeticException("Capacity must be > 0");
-
-                String oldInstructorId = (existing != null) ? existing.getInstructorId() : null;
+                if (cap < 1) throw new ArithmeticException("capacity must be greater than 0.");
 
                 if (existing == null) {
                     Section s = new Section(sid, name, cid, iid, sem, cap, 0);
                     s.onPresistenceSave();
-                    if (!iid.isEmpty() && !iid.equals("Unassigned")) {
-                        addToTeachingTable(iid, sid);
-                    }
                 } else {
                     existing.setName(name);
                     existing.setInstructorId(iid);
                     existing.setSemester(sem);
                     existing.setCapacity(cap);
                     existing.onPresistenceSave();
-                    updateSectionCourseId(sid, cid);
 
-                    if (oldInstructorId != null && !oldInstructorId.equals(iid)) {
-                        if (!oldInstructorId.isEmpty() && !oldInstructorId.equals("Unassigned")) {
-                            removeFromTeachingTable(oldInstructorId, sid);
-                        }
-                        if (!iid.isEmpty() && !iid.equals("Unassigned")) {
-                            addToTeachingTable(iid, sid);
-                        }
-                    }
+                    updateSectionCourseId(sid, cid);
                 }
                 d.dispose();
                 refreshData();
@@ -303,10 +355,19 @@ public class AdminSectionView extends JPanel {
         StyledTable tTable = new StyledTable(cols, new Object[][]{});
         tTable.setModel(tModel);
 
-        List<Section.TimeSlot> slots = section.getTimetable();
+        Section freshSection;
+        try {
+            freshSection = new Section(section.getId());
+        } catch (Exception e) {
+            freshSection = section;
+        }
+
+        List<Section.TimeSlot> slots = freshSection.getTimetable();
         for(Section.TimeSlot ts : slots) {
             tModel.addRow(new Object[]{ts.day, ts.startTime, ts.durationMins, ts.room, "REMOVE"});
         }
+
+        final Section targetSec = freshSection;
 
         tTable.addMouseListener(new MouseAdapter() {
             @Override
@@ -316,7 +377,7 @@ public class AdminSectionView extends JPanel {
                 if(row >= 0 && col == 4) {
                     slots.remove(row);
                     try {
-                        section.updateTimetable(slots, Application.Views.AdminViews.AdminSectionView.this.model == null ? Domain.Abstracts.UserEntity.Permission.PERMISSION_ADMIN : Domain.Abstracts.UserEntity.Permission.PERMISSION_ADMIN);
+                        targetSec.updateTimetable(slots, Domain.Abstracts.UserEntity.Permission.PERMISSION_ADMIN);
                         tModel.removeRow(row);
                     } catch(Exception ex) { ex.printStackTrace(); }
                 }
@@ -355,12 +416,13 @@ public class AdminSectionView extends JPanel {
                 if(!tStr.matches("\\d{2}:\\d{2}")) throw new Exception("Invalid Time Format (HH:MM)");
 
                 slots.add(new Section.TimeSlot(dStr, tStr, min, rStr));
-                section.updateTimetable(slots, Domain.Abstracts.UserEntity.Permission.PERMISSION_ADMIN);
+                targetSec.updateTimetable(slots, Domain.Abstracts.UserEntity.Permission.PERMISSION_ADMIN);
 
                 tModel.setRowCount(0);
                 for(Section.TimeSlot ts : slots) {
                     tModel.addRow(new Object[]{ts.day, ts.startTime, ts.durationMins, ts.room, "REMOVE"});
                 }
+                JOptionPane.showMessageDialog(d, "Slot added. Student view will update on refresh.");
             } catch(Exception ex) {
                 JOptionPane.showMessageDialog(d, "Error: " + ex.getMessage());
             }
@@ -440,29 +502,8 @@ public class AdminSectionView extends JPanel {
     private void updateSectionCourseId(String sectionId, String newCourseId) {
         String sql = "UPDATE sections SET course_id = ? WHERE id = ?";
         try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
-             PreparedStatement s = c.prepareStatement(sql)) {
+             java.sql.PreparedStatement s = c.prepareStatement(sql)) {
             s.setString(1, newCourseId);
-            s.setString(2, sectionId);
-            s.executeUpdate();
-        } catch (Exception e) { e.printStackTrace(); }
-    }
-
-    private void addToTeachingTable(String instructorId, String sectionId) {
-        String sql = "INSERT INTO teaching(instructor_id, section_id) VALUES(?, ?) " +
-                "ON CONFLICT(instructor_id, section_id) DO NOTHING";
-        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
-             PreparedStatement s = c.prepareStatement(sql)) {
-            s.setString(1, instructorId);
-            s.setString(2, sectionId);
-            s.executeUpdate();
-        } catch (Exception e) { e.printStackTrace(); }
-    }
-
-    private void removeFromTeachingTable(String instructorId, String sectionId) {
-        String sql = "DELETE FROM teaching WHERE instructor_id = ? AND section_id = ?";
-        try (Connection c = sqliteConnector.connect("jdbc:sqlite:erp.db");
-             PreparedStatement s = c.prepareStatement(sql)) {
-            s.setString(1, instructorId);
             s.setString(2, sectionId);
             s.executeUpdate();
         } catch (Exception e) { e.printStackTrace(); }

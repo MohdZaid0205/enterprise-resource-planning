@@ -12,30 +12,33 @@ public class ApplicationRules {
 
     public static boolean isMaintenanceMode() {
         createTable();
-        String sql = "SELECT value FROM settings WHERE key = 'maintenance_mode'";
-        try (Connection conn = sqliteConnector.connect(database);
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return Boolean.parseBoolean(rs.getString("value"));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false; // Default to false
+        return getBoolean("maintenance_mode");
     }
 
     public static void setMaintenanceMode(boolean enabled) {
         createTable();
-        String sql = "INSERT INTO settings(key, value) VALUES('maintenance_mode', ?) " +
-                "ON CONFLICT(key) DO UPDATE SET value=excluded.value";
-        try (Connection conn = sqliteConnector.connect(database);
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, String.valueOf(enabled));
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        setValue("maintenance_mode", String.valueOf(enabled));
+    }
+
+    public static String getCurrentSemester() {
+        createTable();
+        String val = getValue("current_semester");
+        return val == null ? "FALL_2025" : val;
+    }
+
+    public static void setCurrentSemester(String semester) {
+        createTable();
+        setValue("current_semester", semester);
+    }
+
+    public static String getAddDropDeadline() {
+        createTable();
+        return getValue("add_drop_deadline");
+    }
+
+    public static void setAddDropDeadline(String date) {
+        createTable();
+        setValue("add_drop_deadline", date);
     }
 
     private static void createTable() {
@@ -44,6 +47,39 @@ public class ApplicationRules {
                 "value TEXT)";
         try (Connection conn = sqliteConnector.connect(database);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static String getValue(String key) {
+        String sql = "SELECT value FROM settings WHERE key = ?";
+        try (Connection conn = sqliteConnector.connect(database);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, key);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("value");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private static boolean getBoolean(String key) {
+        String val = getValue(key);
+        return Boolean.parseBoolean(val);
+    }
+
+    private static void setValue(String key, String value) {
+        String sql = "INSERT INTO settings(key, value) VALUES(?, ?) " +
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value";
+        try (Connection conn = sqliteConnector.connect(database);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, key);
+            stmt.setString(2, value);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();

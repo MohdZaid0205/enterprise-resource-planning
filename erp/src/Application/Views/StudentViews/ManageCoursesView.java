@@ -9,6 +9,7 @@ import Domain.Concretes.Instructor;
 import Domain.Concretes.Section;
 import Domain.Concretes.Student;
 import Domain.Database.sqliteConnector;
+import Domain.Rules.ApplicationRules;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -20,22 +21,21 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class ManageCoursesView extends JPanel {
 
     private final Student student;
-    private final String currentSemester;
     private final boolean isMaintenance;
     private JPanel listContainer;
     private StyledField searchField;
     private StyledComboBox<String> semFilter;
+    private JLabel statusLabel;
 
     public ManageCoursesView(Student student, String currentSemester, boolean isMaintenance) {
         this.student = student;
-        this.currentSemester = currentSemester;
         this.isMaintenance = isMaintenance;
 
         setLayout(new BorderLayout());
@@ -54,27 +54,28 @@ public class ManageCoursesView extends JPanel {
         JLabel title = new JLabel("Course Catalog");
         title.setFont(StyleConstants.HEADER_FONT);
         title.setForeground(StyleConstants.WHITE);
-
-        gbc.gridx = 0;
-        gbc.weightx = 0;
+        gbc.gridx = 0; gbc.weightx = 0;
         header.add(title, gbc);
 
         searchField = new StyledField("Search Course Code or Name...");
         searchField.setPreferredSize(new Dimension(100, 40));
-
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             public void insertUpdate(DocumentEvent e) { loadCourses(); }
             public void removeUpdate(DocumentEvent e) { loadCourses(); }
             public void changedUpdate(DocumentEvent e) { loadCourses(); }
         });
-
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
+        gbc.gridx = 1; gbc.weightx = 1.0;
         header.add(searchField, gbc);
 
-        String[] sems = {"Fall 2025", "Spring 2025"};
+        String[] sems = getAllSemesters();
         semFilter = new StyledComboBox<>(sems);
         semFilter.setPreferredSize(new Dimension(150, 40));
+
+        String activeSem = ApplicationRules.getCurrentSemester();
+        if(activeSem != null) {
+            semFilter.setSelectedItem(activeSem);
+        }
+
         semFilter.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED) loadCourses();
         });
@@ -82,6 +83,12 @@ public class ManageCoursesView extends JPanel {
         gbc.gridx = 2;
         gbc.weightx = 0;
         header.add(semFilter, gbc);
+
+        statusLabel = new JLabel();
+        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        updateStatusLabel();
+        gbc.gridx = 3; gbc.weightx = 0;
+        header.add(statusLabel, gbc);
 
         StyledButton refreshBtn = new StyledButton("Refresh", StyleConstants.PRIMARY_COLOR);
         refreshBtn.setPreferredSize(new Dimension(100, 40));
@@ -108,13 +115,55 @@ public class ManageCoursesView extends JPanel {
         loadCourses();
     }
 
+    private void updateStatusLabel() {
+        String activeSem = ApplicationRules.getCurrentSemester();
+        String selectedSem = (String) semFilter.getSelectedItem();
+
+        if (selectedSem == null || !selectedSem.equals(activeSem)) {
+            statusLabel.setText("View Only (Archive)");
+            statusLabel.setForeground(Color.LIGHT_GRAY);
+            return;
+        }
+
+        String deadline = ApplicationRules.getAddDropDeadline();
+        boolean isPast = isPastDeadline(deadline);
+
+        if (isPast) {
+            statusLabel.setText("Add/Drop Closed");
+            statusLabel.setForeground(StyleConstants.RED);
+        } else {
+            statusLabel.setText("Deadline: " + (deadline != null ? deadline : "None"));
+            statusLabel.setForeground(StyleConstants.GREEN);
+        }
+    }
+
+    private boolean isPastDeadline(String deadline) {
+        if(deadline == null || deadline.isEmpty()) return false;
+        try {
+            LocalDate d = LocalDate.parse(deadline);
+            return LocalDate.now().isAfter(d);
+        } catch (Exception e) { return false; }
+    }
+
     private void loadCourses() {
         listContainer.removeAll();
+        updateStatusLabel();
 
         String selectedSem = (String) semFilter.getSelectedItem();
-        String dbSemester = selectedSem != null ? selectedSem.toUpperCase().replace(" ", "_") : "FALL_2025";
+        if (selectedSem == null) return;
 
-        List<String> enrolledSectionIds = getEnrolledSectionsForStudent(student.getId(), dbSemester);
+        String activeSem = ApplicationRules.getCurrentSemester();
+        boolean isActiveSemester = selectedSem.equals(activeSem);
+        boolean deadlinePassed = isPastDeadline(ApplicationRules.getAddDropDeadline());
+
+        boolean canModify = !isMaintenance && isActiveSemester && !deadlinePassed;
+        String restrictionReason = "";
+
+        if(isMaintenance) restrictionReason = "Maintenance Mode";
+        else if(!isActiveSemester) restrictionReason = "Semester Closed";
+        else if(deadlinePassed) restrictionReason = "Deadline Passed";
+
+        List<String> enrolledSectionIds = getEnrolledSectionsForStudent(student.getId(), selectedSem);
         List<String> courseIds = getAllCourseIds();
 
         for (String cId : courseIds) {
@@ -126,16 +175,25 @@ public class ManageCoursesView extends JPanel {
                         cId.toLowerCase().contains(searchText);
 
                 if (matchesSearch) {
-                    CourseItemPanel panel = new CourseItemPanel(course, dbSemester, enrolledSectionIds);
+                    CourseItemPanel panel = new CourseItemPanel(course, selectedSem, enrolledSectionIds, canModify, restrictionReason);
                     listContainer.add(panel);
                     listContainer.add(Box.createVerticalStrut(15));
                 }
-
             } catch (Exception e) { e.printStackTrace(); }
         }
 
         listContainer.revalidate();
         listContainer.repaint();
+    }
+
+    private String[] getAllSemesters() {
+        List<String> sems = new ArrayList<>();
+        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
+             PreparedStatement stmt = conn.prepareStatement("SELECT DISTINCT semester FROM sections")) {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) sems.add(rs.getString("semester"));
+        } catch (SQLException e) { e.printStackTrace(); }
+        return sems.toArray(new String[0]);
     }
 
     private List<String> getEnrolledSectionsForStudent(String studentId, String semester) {
@@ -170,12 +228,11 @@ public class ManageCoursesView extends JPanel {
         private boolean isExpanded = false;
         private final StyledButton infoBtn;
 
-        public CourseItemPanel(Course course, String semester, List<String> enrolledSectionIds) {
+        public CourseItemPanel(Course course, String semester, List<String> enrolledSectionIds, boolean canModify, String reason) {
             setLayout(new BorderLayout());
-            setBackground(StyleConstants.WHITE);
-
+            setBackground(Color.WHITE);
             setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(0, 0, 2, 0, StyleConstants.DIM_WHITE),
+                    BorderFactory.createMatteBorder(0, 0, 2, 0, new Color(240, 240, 240)),
                     new EmptyBorder(10, 15, 10, 15)
             ));
 
@@ -199,7 +256,7 @@ public class ManageCoursesView extends JPanel {
             sectionsContainer.setBorder(new EmptyBorder(10, 0, 0, 0));
             sectionsContainer.setVisible(false);
 
-            loadSections(course, semester, enrolledSectionIds);
+            loadSections(course, semester, enrolledSectionIds, canModify, reason);
 
             add(topBar, BorderLayout.NORTH);
             add(sectionsContainer, BorderLayout.CENTER);
@@ -242,7 +299,7 @@ public class ManageCoursesView extends JPanel {
             }
         }
 
-        private void loadSections(Course course, String semester, List<String> enrolledSectionIds) {
+        private void loadSections(Course course, String semester, List<String> enrolledSectionIds, boolean canModify, String reason) {
             List<String> sectionIds = getSectionsForCourse(course.getId(), semester);
 
             if (sectionIds.isEmpty()) {
@@ -264,7 +321,7 @@ public class ManageCoursesView extends JPanel {
             for (String secId : sectionIds) {
                 try {
                     Section section = new Section(secId);
-                    SectionItemPanel sectionRow = new SectionItemPanel(section, course, currentlyEnrolledSectionId, this);
+                    SectionItemPanel sectionRow = new SectionItemPanel(section, course, currentlyEnrolledSectionId, this, canModify, reason);
                     sectionsContainer.add(sectionRow);
                 } catch (Exception e) { e.printStackTrace(); }
             }
@@ -290,12 +347,12 @@ public class ManageCoursesView extends JPanel {
         private final StyledButton policyBtn;
         private final CourseItemPanel parentContainer;
 
-        public SectionItemPanel(Section section, Course course, String currentlyEnrolledSectionId, CourseItemPanel parent) {
+        public SectionItemPanel(Section section, Course course, String currentlyEnrolledSectionId, CourseItemPanel parent, boolean canModify, String reason) {
             this.parentContainer = parent;
             setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
             setOpaque(false);
             setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(0, 0, 1, 0, StyleConstants.DIM_WHITE),
+                    BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(240, 240, 240)),
                     new EmptyBorder(5, 10, 5, 10)
             ));
             setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -341,10 +398,10 @@ public class ManageCoursesView extends JPanel {
 
             StyledButton actionBtn;
 
-            if (isMaintenance) {
+            if (!canModify) {
                 actionBtn = new StyledButton(isThisTheEnrolledSection ? "Drop" : "Enroll", StyleConstants.DISABLED_COLOR);
                 actionBtn.setEnabled(false);
-                actionBtn.setToolTipText("System is in Maintenance Mode. Changes Disabled.");
+                actionBtn.setToolTipText(reason);
             } else {
                 if (isThisTheEnrolledSection) {
                     actionBtn = new StyledButton("Drop", StyleConstants.RED);
@@ -389,7 +446,7 @@ public class ManageCoursesView extends JPanel {
         private JPanel createPolicyPanel(Section section) {
             JPanel p = new JPanel();
             p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-            p.setBackground(StyleConstants.DIM_WHITE);
+            p.setBackground(new Color(250, 250, 250));
             p.setBorder(new EmptyBorder(10, 10, 10, 10));
 
             JPanel weights = new JPanel(new GridLayout(2, 4, 5, 5));

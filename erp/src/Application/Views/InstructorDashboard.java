@@ -6,6 +6,7 @@ import Application.Views.InstructorViews.CourseStatisticsView;
 import Application.Views.InstructorViews.GradebookView;
 import Application.Views.InstructorViews.SectionView;
 import Domain.Concretes.Instructor;
+import Domain.Rules.ApplicationRules; // Import Maintenance Rules
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -32,6 +33,7 @@ public class InstructorDashboard extends JFrame {
         contentArea = new JPanel(new CardLayout());
         contentArea.setBackground(StyleConstants.WHITE);
 
+
         contentArea.add(new SectionView(instructor), "SECTIONS");
 
         contentArea.add(new GradebookView(instructor), "GRADING");
@@ -52,9 +54,33 @@ public class InstructorDashboard extends JFrame {
         sidebar.add(new JSeparator());
         sidebar.add(createNavigationPanel());
         sidebar.add(Box.createVerticalGlue());
+
+        if (ApplicationRules.isMaintenanceMode()) {
+            sidebar.add(createMaintenanceNotification());
+            sidebar.add(Box.createVerticalStrut(10));
+        }
+
         sidebar.add(createLogoutPanel());
 
         return sidebar;
+    }
+
+    private JPanel createMaintenanceNotification() {
+        JPanel maintainancePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        maintainancePanel.setBackground(StyleConstants.WHITE);
+        maintainancePanel.setBorder(new EmptyBorder(0, 15, 20, 15));
+        maintainancePanel.setMaximumSize(new Dimension(250, 50));
+        maintainancePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        StyledButton maintainanceBtn = new StyledButton("Mainatinance Mode: ON", new Color(246, 208, 53));
+        maintainanceBtn.setPreferredSize(new Dimension(210, 40));
+//        maintainanceBtn.addActionListener(e -> {
+//            dispose();
+//            new Application.Views.LoginView().setVisible(true);
+//        });
+
+        maintainancePanel.add(maintainanceBtn);
+        return maintainancePanel;
     }
 
     private JPanel createProfilePanel() {
@@ -88,6 +114,7 @@ public class InstructorDashboard extends JFrame {
         navPanel.setBorder(new EmptyBorder(20, 0, 0, 0));
         navPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
+//        navPanel.add(createNavButton("My Courses", "MY_COURSES"));
         navPanel.add(createNavButton("My Sections", "SECTIONS"));
         navPanel.add(createNavButton("Gradebook", "GRADING"));
         navPanel.add(createNavButton("Statistics", "STATS"));

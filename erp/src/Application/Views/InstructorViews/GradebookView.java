@@ -7,6 +7,7 @@ import Domain.Concretes.Instructor;
 import Domain.Concretes.Section;
 import Domain.Concretes.Student;
 import Domain.Database.sqliteConnector;
+import Domain.Rules.ApplicationRules;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -42,6 +43,13 @@ public class GradebookView extends JPanel {
         title.setFont(StyleConstants.HEADER_FONT);
         title.setForeground(StyleConstants.WHITE);
         header.add(title);
+
+//        if (ApplicationRules.isMaintenanceMode()) {
+//            JLabel maintLabel = new JLabel(" (READ-ONLY MODE)");
+//            maintLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+//            maintLabel.setForeground(Color.ORANGE);
+//            header.add(maintLabel);
+//        }
 
         StyledButton refreshBtn = new StyledButton("Refresh List", StyleConstants.SECONDARY_COLOR);
         refreshBtn.setPreferredSize(new Dimension(120, 35));
@@ -116,17 +124,21 @@ public class GradebookView extends JPanel {
     private class GradebookPanel extends JPanel {
         private final Section section;
         private final JPanel contentPanel;
-        private boolean isExpanded = false;
+        private boolean isExpanded = true;
         private final StyledButton toggleBtn;
+        private final boolean isMaintenance;
 
         public GradebookPanel(Section section) {
             this.section = section;
+            this.isMaintenance = ApplicationRules.isMaintenanceMode(); // Check mode
+
             setLayout(new BorderLayout());
             setBackground(Color.WHITE);
             setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createMatteBorder(0, 0, 2, 0, new Color(230, 230, 230)),
                     new EmptyBorder(15, 20, 15, 20)
             ));
+            setAlignmentX(Component.LEFT_ALIGNMENT);
 
             JPanel topBar = new JPanel(new BorderLayout());
             topBar.setOpaque(false);
@@ -141,12 +153,14 @@ public class GradebookView extends JPanel {
             StyledButton editWeightsBtn = new StyledButton("Edit Weights", StyleConstants.SECONDARY_COLOR);
             editWeightsBtn.setPreferredSize(new Dimension(100, 35));
             editWeightsBtn.addActionListener(e -> showEditWeightsDialog());
+            editWeightsBtn.setEnabled(!isMaintenance); // Disable in maintenance
 
             StyledButton editSlabsBtn = new StyledButton("Edit Slabs", StyleConstants.SECONDARY_COLOR);
             editSlabsBtn.setPreferredSize(new Dimension(100, 35));
             editSlabsBtn.addActionListener(e -> showEditSlabsDialog());
+            editSlabsBtn.setEnabled(!isMaintenance); // Disable in maintenance
 
-            toggleBtn = new StyledButton("Open Gradebook", StyleConstants.PRIMARY_COLOR);
+            toggleBtn = new StyledButton("Close Gradebook", StyleConstants.PRIMARY_COLOR);
             toggleBtn.setPreferredSize(new Dimension(130, 35));
             toggleBtn.addActionListener(e -> toggleExpansion());
 
@@ -162,11 +176,14 @@ public class GradebookView extends JPanel {
             contentPanel = new JPanel();
             contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
             contentPanel.setOpaque(false);
-            contentPanel.setVisible(false);
+            contentPanel.setVisible(true);
             contentPanel.setBorder(new EmptyBorder(15, 0, 0, 0));
+            contentPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
             add(topBar, BorderLayout.NORTH);
             add(contentPanel, BorderLayout.CENTER);
+
+            loadContent();
         }
 
         private void toggleExpansion() {
@@ -186,13 +203,13 @@ public class GradebookView extends JPanel {
         private void loadContent() {
             contentPanel.removeAll();
 
-            JPanel policyWrapper = new JPanel(new GridLayout(1, 2, 30, 0)); // 2 Columns
+            JPanel policyWrapper = new JPanel(new GridLayout(1, 2, 30, 0));
             policyWrapper.setOpaque(false);
             policyWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
-            policyWrapper.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120)); // Increased height slightly
+            policyWrapper.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
 
             JPanel weightsBox = createCleanInfoBox("Weights Distribution");
-            JPanel weightsGrid = new JPanel(new GridLayout(2, 4, 10, 10)); // Added gap
+            JPanel weightsGrid = new JPanel(new GridLayout(2, 4, 10, 10));
             weightsGrid.setOpaque(false);
             weightsGrid.add(createStatLabel("Labs", section.getLabs() + "%"));
             weightsGrid.add(createStatLabel("Quiz", section.getQuiz() + "%"));
@@ -204,7 +221,7 @@ public class GradebookView extends JPanel {
             weightsBox.add(weightsGrid);
 
             JPanel slabsBox = createCleanInfoBox("Grading Scale (Min)");
-            JPanel slabsGrid = new JPanel(new GridLayout(2, 5, 10, 10)); // Added gap
+            JPanel slabsGrid = new JPanel(new GridLayout(2, 5, 10, 10));
             slabsGrid.setOpaque(false);
             slabsGrid.add(createStatLabel("O", ">= " + section.getO()));
             slabsGrid.add(createStatLabel("A", ">= " + section.getA()));
@@ -226,9 +243,9 @@ public class GradebookView extends JPanel {
 
             if (rows.isEmpty()) {
                 JLabel empty = new JLabel("No students enrolled in this section.");
-                empty.setHorizontalAlignment(SwingConstants.CENTER);
+                empty.setHorizontalAlignment(SwingConstants.LEFT);
                 empty.setForeground(Color.GRAY);
-                empty.setAlignmentX(Component.CENTER_ALIGNMENT);
+                empty.setAlignmentX(Component.LEFT_ALIGNMENT);
                 contentPanel.add(empty);
                 return;
             }
@@ -237,7 +254,8 @@ public class GradebookView extends JPanel {
             DefaultTableModel model = new DefaultTableModel(columns, 0) {
                 @Override
                 public boolean isCellEditable(int row, int column) {
-                    return column == 10;
+                    // Disable editing if maintenance mode is on, otherwise only allow button column
+                    return !isMaintenance && column == 10;
                 }
             };
 
@@ -247,7 +265,7 @@ public class GradebookView extends JPanel {
                         r.studentId, r.studentName,
                         r.lab, r.quiz, r.mid, r.end, r.asgn, r.proj, r.bonus,
                         String.format("%.2f", total),
-                        "Edit"
+                        isMaintenance ? "Locked" : "Edit" // Change button text
                 });
             }
 
@@ -264,8 +282,10 @@ public class GradebookView extends JPanel {
                 table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
             }
 
-            table.getColumnModel().getColumn(10).setCellRenderer(new ButtonRenderer());
-            table.getColumnModel().getColumn(10).setCellEditor(new ButtonEditor(new JCheckBox(), rows, section.getId(), this));
+            table.getColumnModel().getColumn(10).setCellRenderer(new ButtonRenderer(isMaintenance));
+            if (!isMaintenance) {
+                table.getColumnModel().getColumn(10).setCellEditor(new ButtonEditor(new JCheckBox(), rows, section.getId(), this));
+            }
 
             JScrollPane tableScroll = new JScrollPane(table);
             tableScroll.setPreferredSize(new Dimension(0, 300));
@@ -281,6 +301,7 @@ public class GradebookView extends JPanel {
                     BorderFactory.createLineBorder(new Color(230, 230, 230)),
                     new EmptyBorder(10, 15, 10, 15)
             ));
+            box.setAlignmentX(Component.LEFT_ALIGNMENT); // Ensure box aligns left
 
             JLabel head = new JLabel(title);
             head.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -298,31 +319,34 @@ public class GradebookView extends JPanel {
         }
 
         private List<StudentGradeRow> fetchStudentRows() {
-            List<StudentGradeRow> list = new ArrayList<>();
+            List<String> studentIds = new ArrayList<>();
             String sql = "SELECT student_id FROM enrollments WHERE section_id = ?";
 
             try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setString(1, section.getId());
                 ResultSet rs = stmt.executeQuery();
-
                 while (rs.next()) {
-                    String sId = rs.getString("student_id");
-                    try {
-                        Student s = new Student(sId);
-                        Section.StudentGradeProxy grades = section.getStudentGradeRecord(sId, instructor.permission);
-
-                        list.add(new StudentGradeRow(
-                                sId, s.getName(),
-                                grades.getLabs(), grades.getQuiz(), grades.getMidExams(),
-                                grades.getEndExams(), grades.getAssignments(), grades.getProjects(), grades.getBonus()
-                        ));
-                    } catch (Exception ex) {
-                        System.err.println("Error loading student " + sId + ": " + ex.getMessage());
-                    }
+                    studentIds.add(rs.getString("student_id"));
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
+            }
+
+            List<StudentGradeRow> list = new ArrayList<>();
+            for (String sId : studentIds) {
+                try {
+                    Student s = new Student(sId);
+                    Section.StudentGradeProxy grades = section.getStudentGradeRecord(sId, instructor.permission);
+
+                    list.add(new StudentGradeRow(
+                            sId, s.getName(),
+                            grades.getLabs(), grades.getQuiz(), grades.getMidExams(),
+                            grades.getEndExams(), grades.getAssignments(), grades.getProjects(), grades.getBonus()
+                    ));
+                } catch (Exception ex) {
+                    System.err.println("Error loading student " + sId + ": " + ex.getMessage());
+                }
             }
             return list;
         }
@@ -591,10 +615,11 @@ public class GradebookView extends JPanel {
     }
 
     class ButtonRenderer extends JButton implements TableCellRenderer {
-        public ButtonRenderer() {
+        private final boolean disabled;
+
+        public ButtonRenderer(boolean disabled) {
+            this.disabled = disabled;
             setOpaque(true);
-            setBackground(StyleConstants.ACCENT_COLOR);
-            setForeground(Color.WHITE);
             setFont(new Font("Segoe UI", Font.BOLD, 12));
             setBorderPainted(false);
             setFocusPainted(false);
@@ -606,7 +631,15 @@ public class GradebookView extends JPanel {
         public Component getTableCellRendererComponent(JTable table, Object value,
                                                        boolean isSelected, boolean hasFocus, int row, int column) {
             setText((value == null) ? "Edit" : value.toString());
-            setBackground(StyleConstants.ACCENT_COLOR);
+            if (disabled) {
+                setBackground(Color.LIGHT_GRAY);
+                setForeground(Color.DARK_GRAY);
+                setEnabled(false);
+            } else {
+                setBackground(StyleConstants.ACCENT_COLOR);
+                setForeground(Color.WHITE);
+                setEnabled(true);
+            }
             return this;
         }
     }

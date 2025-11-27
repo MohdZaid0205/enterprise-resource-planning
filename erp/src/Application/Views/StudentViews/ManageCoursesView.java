@@ -73,15 +73,18 @@ public class ManageCoursesView extends JPanel {
 
         String activeSem = ApplicationRules.getCurrentSemester();
         if(activeSem != null) {
-            semFilter.setSelectedItem(activeSem);
+            for(int i=0; i<sems.length; i++) {
+                if(sems[i].equalsIgnoreCase(activeSem)) {
+                    semFilter.setSelectedIndex(i);
+                    break;
+                }
+            }
         }
 
         semFilter.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED) loadCourses();
         });
-
-        gbc.gridx = 2;
-        gbc.weightx = 0;
+        gbc.gridx = 2; gbc.weightx = 0;
         header.add(semFilter, gbc);
 
         statusLabel = new JLabel();
@@ -93,10 +96,7 @@ public class ManageCoursesView extends JPanel {
         StyledButton refreshBtn = new StyledButton("Refresh", StyleConstants.PRIMARY_COLOR);
         refreshBtn.setPreferredSize(new Dimension(100, 40));
         refreshBtn.addActionListener(e -> loadCourses());
-
-        gbc.gridx = 3;
-        gbc.weightx = 0;
-        gbc.insets = new Insets(0, 0, 0, 0);
+        gbc.gridx = 4; gbc.weightx = 0; gbc.insets = new Insets(0, 0, 0, 0);
         header.add(refreshBtn, gbc);
 
         listContainer = new JPanel();
@@ -119,7 +119,7 @@ public class ManageCoursesView extends JPanel {
         String activeSem = ApplicationRules.getCurrentSemester();
         String selectedSem = (String) semFilter.getSelectedItem();
 
-        if (selectedSem == null || !selectedSem.equals(activeSem)) {
+        if (selectedSem == null || !selectedSem.equalsIgnoreCase(activeSem)) {
             statusLabel.setText("View Only (Archive)");
             statusLabel.setForeground(Color.LIGHT_GRAY);
             return;
@@ -153,7 +153,7 @@ public class ManageCoursesView extends JPanel {
         if (selectedSem == null) return;
 
         String activeSem = ApplicationRules.getCurrentSemester();
-        boolean isActiveSemester = selectedSem.equals(activeSem);
+        boolean isActiveSemester = selectedSem.equalsIgnoreCase(activeSem);
         boolean deadlinePassed = isPastDeadline(ApplicationRules.getAddDropDeadline());
 
         boolean canModify = !isMaintenance && isActiveSemester && !deadlinePassed;
@@ -215,9 +215,7 @@ public class ManageCoursesView extends JPanel {
         try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                ids.add(rs.getString("id"));
-            }
+            while (rs.next()) ids.add(rs.getString("id"));
         } catch (SQLException e) { e.printStackTrace(); }
         return ids;
     }
@@ -398,24 +396,31 @@ public class ManageCoursesView extends JPanel {
 
             StyledButton actionBtn;
 
-            if (!canModify) {
-                actionBtn = new StyledButton(isThisTheEnrolledSection ? "Drop" : "Enroll", StyleConstants.DISABLED_COLOR);
-                actionBtn.setEnabled(false);
-                actionBtn.setToolTipText(reason);
-            } else {
-                if (isThisTheEnrolledSection) {
-                    actionBtn = new StyledButton("Drop", StyleConstants.RED);
-                    actionBtn.addActionListener(e -> handleDrop(section.getId()));
-                } else if (hasOtherEnrollmentInCourse) {
-                    actionBtn = new StyledButton("Enroll", StyleConstants.DISABLED_COLOR);
+            boolean actionsDisabled = !canModify;
+            String toolTip = actionsDisabled ? reason : "";
+
+            if (isThisTheEnrolledSection) {
+                actionBtn = new StyledButton("Drop", StyleConstants.RED);
+                if (actionsDisabled) {
                     actionBtn.setEnabled(false);
-                    actionBtn.setToolTipText("Enrolled in another section.");
-                } else if (isFull) {
-                    actionBtn = new StyledButton("Full", StyleConstants.DISABLED_COLOR);
-                    actionBtn.setEnabled(false);
-                    actionBtn.setToolTipText("Section is at maximum capacity.");
+                    actionBtn.setToolTipText(toolTip);
                 } else {
-                    actionBtn = new StyledButton("Enroll", StyleConstants.GREEN);
+                    actionBtn.addActionListener(e -> handleDrop(section.getId()));
+                }
+            } else if (hasOtherEnrollmentInCourse) {
+                actionBtn = new StyledButton("Enroll", StyleConstants.DISABLED_COLOR);
+                actionBtn.setEnabled(false);
+                actionBtn.setToolTipText("Enrolled in another section.");
+            } else if (isFull) {
+                actionBtn = new StyledButton("Full", StyleConstants.DISABLED_COLOR);
+                actionBtn.setEnabled(false);
+                actionBtn.setToolTipText("Section is at maximum capacity.");
+            } else {
+                actionBtn = new StyledButton("Enroll", StyleConstants.GREEN);
+                if (actionsDisabled) {
+                    actionBtn.setEnabled(false);
+                    actionBtn.setToolTipText(toolTip);
+                } else {
                     actionBtn.addActionListener(e -> handleEnroll(section.getId()));
                 }
             }

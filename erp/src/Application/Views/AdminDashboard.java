@@ -195,7 +195,6 @@ public class AdminDashboard extends JFrame {
             CardLayout cl = (CardLayout) contentArea.getLayout();
             cl.show(contentArea, cardName);
 
-            // Explicitly refresh data when switching tabs
             if ("SECTIONS".equals(cardName)) {
                 sectionView.refreshData();
             } else if ("INSTRUCTORS".equals(cardName)) {

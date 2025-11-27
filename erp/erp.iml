@@ -46,5 +46,6 @@
     </orderEntry>
     <orderEntry type="library" name="realityforge.jetbrains.annotations1" level="project" />
     <orderEntry type="library" name="junit.jupiter.engine" level="project" />
+    <orderEntry type="library" name="ch.codeblock.qrinvoice.openpdf" level="project" />
   </component>
 </module>

@@ -263,6 +263,15 @@ public class AdminSectionView extends JPanel {
             StyledButton deleteBtn = new StyledButton("Delete", StyleConstants.RED);
             deleteBtn.setPreferredSize(new Dimension(100, 40));
             deleteBtn.addActionListener(e -> {
+                if (existing.getContains() > 0) {
+                    JOptionPane.showMessageDialog(d,
+                            "Cannot delete section: " + existing.getContains() +
+                                    " student(s) are currently enrolled.\n" +
+                                    "Please remove all students before deleting.",
+                            "Deletion Blocked", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+
                 int confirm = JOptionPane.showConfirmDialog(d,
                         "Are you sure you want to delete section " + existing.getId() + "?\nThis cannot be undone.",
                         "Confirm Deletion", JOptionPane.YES_NO_OPTION);
@@ -297,7 +306,7 @@ public class AdminSectionView extends JPanel {
                 }
 
                 int cap = Integer.parseInt(capStr);
-                if (cap < 1) throw new ArithmeticException("capacity must be greater than 0.");
+                if (cap < 1) throw new ArithmeticException("Capacity must be > 0");
 
                 if (existing == null) {
                     Section s = new Section(sid, name, cid, iid, sem, cap, 0);

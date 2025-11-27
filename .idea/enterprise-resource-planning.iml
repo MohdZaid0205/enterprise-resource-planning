@@ -18,5 +18,6 @@
     <orderEntry type="library" name="slf4j.simple" level="project" />
     <orderEntry type="library" name="realityforge.jetbrains.annotations" level="project" />
     <orderEntry type="library" name="junit.jupiter.engine" level="project" />
+    <orderEntry type="library" name="ch.codeblock.qrinvoice.openpdf" level="project" />
   </component>
 </module>

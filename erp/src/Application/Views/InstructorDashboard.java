@@ -9,7 +9,9 @@ import Domain.Concretes.Instructor;
 import Domain.Rules.ApplicationRules; // Import Maintenance Rules
 
 import javax.swing.*;
+import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.MatteBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -51,37 +53,53 @@ public class InstructorDashboard extends JFrame {
         sidebar.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(230, 230, 230)));
 
         sidebar.add(createProfilePanel());
+
+        if (ApplicationRules.isMaintenanceMode()) {
+            JPanel warningPanel = new JPanel(new BorderLayout());
+            warningPanel.setBackground(StyleConstants.YELLOW);
+            warningPanel.setBorder(new CompoundBorder(
+                    new MatteBorder(0, 4, 0, 0, StyleConstants.WARN),
+                    new EmptyBorder(10, 15, 10, 15)
+            ));
+
+            warningPanel.setMaximumSize(new Dimension(250, 60));
+            warningPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            JLabel warnIcon = new JLabel("<html><b>Maintenance Mode</b><br><span style='font-size:10px; " +
+                    "color:#555'>Changes are disabled.</span></html>");
+            warnIcon.setForeground(StyleConstants.BLACK);
+
+            warningPanel.add(warnIcon, BorderLayout.CENTER);
+            sidebar.add(warningPanel);
+        }
+
         sidebar.add(new JSeparator());
         sidebar.add(createNavigationPanel());
         sidebar.add(Box.createVerticalGlue());
-
-        if (ApplicationRules.isMaintenanceMode()) {
-            sidebar.add(createMaintenanceNotification());
-            sidebar.add(Box.createVerticalStrut(10));
-        }
 
         sidebar.add(createLogoutPanel());
 
         return sidebar;
     }
 
-    private JPanel createMaintenanceNotification() {
-        JPanel maintainancePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        maintainancePanel.setBackground(StyleConstants.WHITE);
-        maintainancePanel.setBorder(new EmptyBorder(0, 15, 20, 15));
-        maintainancePanel.setMaximumSize(new Dimension(250, 50));
-        maintainancePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        StyledButton maintainanceBtn = new StyledButton("Mainatinance Mode: ON", new Color(246, 208, 53));
-        maintainanceBtn.setPreferredSize(new Dimension(210, 40));
-//        maintainanceBtn.addActionListener(e -> {
-//            dispose();
-//            new Application.Views.LoginView().setVisible(true);
-//        });
-
-        maintainancePanel.add(maintainanceBtn);
-        return maintainancePanel;
-    }
+    // redendant, moved this part directly to createSidebar()
+//    private JPanel createMaintenanceNotification() {
+//        JPanel maintainancePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+//        maintainancePanel.setBackground(StyleConstants.WHITE);
+//        maintainancePanel.setBorder(new EmptyBorder(0, 15, 20, 15));
+//        maintainancePanel.setMaximumSize(new Dimension(250, 50));
+//        maintainancePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+//
+//        StyledButton maintainanceBtn = new StyledButton("Mainatinance Mode: ON", new Color(246, 208, 53));
+//        maintainanceBtn.setPreferredSize(new Dimension(210, 40));
+////        maintainanceBtn.addActionListener(e -> {
+////            dispose();
+////            new Application.Views.LoginView().setVisible(true);
+////        });
+//
+//        maintainancePanel.add(maintainanceBtn);
+//        return maintainancePanel;
+//    }
 
     private JPanel createProfilePanel() {
         JPanel profilePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));

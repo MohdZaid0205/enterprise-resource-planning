@@ -8,9 +8,14 @@ import Domain.Rules.ApplicationRules;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 public class AdminDashboard extends JFrame {
 
@@ -18,7 +23,6 @@ public class AdminDashboard extends JFrame {
     private JPanel contentArea;
     private StyledButton maintenanceBtn;
 
-    // Keep references to views to call refresh methods
     private AdminStudentView studentView;
     private AdminInstructorView instructorView;
     private AdminCourseView courseView;
@@ -38,7 +42,6 @@ public class AdminDashboard extends JFrame {
         contentArea = new JPanel(new CardLayout());
         contentArea.setBackground(StyleConstants.WHITE);
 
-        // Initialize Views
         studentView = new AdminStudentView();
         instructorView = new AdminInstructorView();
         courseView = new AdminCourseView();
@@ -57,12 +60,16 @@ public class AdminDashboard extends JFrame {
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setBackground(StyleConstants.WHITE);
         sidebar.setPreferredSize(new Dimension(250, 0));
-        sidebar.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(230, 230, 230)));
+        sidebar.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, StyleConstants.DIM_WHITE));
 
         sidebar.add(createProfilePanel());
         sidebar.add(new JSeparator());
         sidebar.add(createNavigationPanel());
         sidebar.add(Box.createVerticalGlue());
+
+        sidebar.add(createBackupRestorePanel());
+        sidebar.add(Box.createVerticalStrut(10));
+
         sidebar.add(createMaintenancePanel());
         sidebar.add(createLogoutPanel());
 
@@ -104,6 +111,87 @@ public class AdminDashboard extends JFrame {
         return navPanel;
     }
 
+    private JPanel createBackupRestorePanel() {
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
+        p.setBackground(StyleConstants.WHITE);
+        p.setBorder(new EmptyBorder(0, 15, 0, 15));
+        p.setMaximumSize(new Dimension(250, 45));
+        p.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        StyledButton exportBtn = new StyledButton("Export DB", StyleConstants.ACCENT_COLOR);
+        exportBtn.setPreferredSize(new Dimension(100, 35));
+        exportBtn.addActionListener(e -> handleExport());
+
+        StyledButton importBtn = new StyledButton("Import DB", StyleConstants.ACCENT_COLOR);
+        importBtn.setPreferredSize(new Dimension(100, 35));
+        importBtn.addActionListener(e -> handleImport());
+
+        p.add(exportBtn);
+        p.add(importBtn);
+        return p;
+    }
+
+    private void handleExport() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Select Export Directory");
+        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+
+        if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File targetDir = chooser.getSelectedFile();
+            String prefix = JOptionPane.showInputDialog(this, "Enter filename prefix (e.g., 'backup_2023'):", "backup");
+
+            if (prefix == null || prefix.trim().isEmpty()) prefix = "backup";
+
+            try {
+                File erpDb = new File("erp.db");
+                File credDb = new File("credentials.db");
+
+                if (erpDb.exists()) {
+                    Files.copy(erpDb.toPath(), new File(targetDir, prefix + "_erp.db").toPath(), StandardCopyOption.REPLACE_EXISTING);
+                }
+                if (credDb.exists()) {
+                    Files.copy(credDb.toPath(), new File(targetDir, prefix + "_credentials.db").toPath(), StandardCopyOption.REPLACE_EXISTING);
+                }
+                JOptionPane.showMessageDialog(this, "Database exported successfully as " + prefix + "_*.db");
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Export Failed: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void handleImport() {
+        JFileChooser erpChooser = new JFileChooser();
+        erpChooser.setDialogTitle("Select ERP Database Backup File (.db)");
+        erpChooser.setFileFilter(new FileNameExtensionFilter("SQLite Database", "db"));
+        if (erpChooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        File backupErp = erpChooser.getSelectedFile();
+
+        JFileChooser credChooser = new JFileChooser();
+        credChooser.setDialogTitle("Select Credentials Database Backup File (.db)");
+        credChooser.setFileFilter(new FileNameExtensionFilter("SQLite Database", "db"));
+        if (credChooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        File backupCred = credChooser.getSelectedFile();
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "This will overwrite current data with the selected backups. Application needs restart. Continue?",
+                "Confirm Import", JOptionPane.YES_NO_OPTION);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            try {
+                if (backupErp.exists()) {
+                    Files.copy(backupErp.toPath(), new File("erp.db").toPath(), StandardCopyOption.REPLACE_EXISTING);
+                }
+                if (backupCred.exists()) {
+                    Files.copy(backupCred.toPath(), new File("credentials.db").toPath(), StandardCopyOption.REPLACE_EXISTING);
+                }
+                JOptionPane.showMessageDialog(this, "Import Successful. Please restart the application.");
+                System.exit(0);
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Import Failed: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
     private JPanel createMaintenancePanel() {
         JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT));
         p.setBackground(StyleConstants.WHITE);
@@ -113,9 +201,8 @@ public class AdminDashboard extends JFrame {
 
         maintenanceBtn = new StyledButton("Maintenance: OFF", Color.ORANGE);
         maintenanceBtn.setPreferredSize(new Dimension(210, 40));
-        maintenanceBtn.setForeground(Color.BLACK); // Dark text for yellow/orange bg
+        maintenanceBtn.setForeground(StyleConstants.BLACK);
 
-        // Set initial state
         boolean isModeOn = ApplicationRules.isMaintenanceMode();
         updateMaintenanceButton(isModeOn);
 
@@ -131,11 +218,11 @@ public class AdminDashboard extends JFrame {
 
     private void updateMaintenanceButton(boolean isOn) {
         if (isOn) {
-            maintenanceBtn.setText("MAINTENANCE: ON");
-            maintenanceBtn.setBackground(Color.YELLOW);
-        } else {
-            maintenanceBtn.setText("Maintenance: OFF");
+            maintenanceBtn.setText("MAINTAINANCE: ON");
             maintenanceBtn.setBackground(Color.ORANGE);
+        } else {
+            maintenanceBtn.setText("MAINTAINANCE: OFF");
+            maintenanceBtn.setBackground(StyleConstants.ACCENT_COLOR);
         }
     }
 
@@ -164,7 +251,7 @@ public class AdminDashboard extends JFrame {
                 if (getModel().isRollover()) {
                     Graphics2D g2 = (Graphics2D) g;
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    g2.setColor(new Color(240, 240, 240));
+                    g2.setColor(StyleConstants.DIM_WHITE);
                     g2.fillRect(0, 0, getWidth(), getHeight());
                     g2.setColor(StyleConstants.ACCENT_COLOR);
                     g2.fillRect(0, 0, 4, getHeight());

@@ -28,13 +28,15 @@ public class ManageCoursesView extends JPanel {
 
     private final Student student;
     private final String currentSemester;
+    private final boolean isMaintenance;
     private JPanel listContainer;
     private StyledField searchField;
     private StyledComboBox<String> semFilter;
 
-    public ManageCoursesView(Student student, String currentSemester) {
+    public ManageCoursesView(Student student, String currentSemester, boolean isMaintenance) {
         this.student = student;
         this.currentSemester = currentSemester;
+        this.isMaintenance = isMaintenance;
 
         setLayout(new BorderLayout());
         setBackground(StyleConstants.TERTIARY_COLOR);
@@ -70,7 +72,6 @@ public class ManageCoursesView extends JPanel {
         gbc.weightx = 1.0;
         header.add(searchField, gbc);
 
-        // Semester Filter Dropdown
         String[] sems = {"Fall 2025", "Spring 2025"};
         semFilter = new StyledComboBox<>(sems);
         semFilter.setPreferredSize(new Dimension(150, 40));
@@ -110,14 +111,10 @@ public class ManageCoursesView extends JPanel {
     private void loadCourses() {
         listContainer.removeAll();
 
-        // Get selected semester from dropdown and format it for DB (e.g. "Fall 2025" -> "FALL_2025")
         String selectedSem = (String) semFilter.getSelectedItem();
         String dbSemester = selectedSem != null ? selectedSem.toUpperCase().replace(" ", "_") : "FALL_2025";
 
-        // FIX: Fetch enrollments directly from DB instead of relying on WeeklySchedule
-        // (which might filter out courses missing timetable slots)
         List<String> enrolledSectionIds = getEnrolledSectionsForStudent(student.getId(), dbSemester);
-
         List<String> courseIds = getAllCourseIds();
 
         for (String cId : courseIds) {
@@ -158,8 +155,8 @@ public class ManageCoursesView extends JPanel {
         List<String> ids = new ArrayList<>();
         String sql = "SELECT id FROM courses";
         try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 ids.add(rs.getString("id"));
             }
@@ -175,10 +172,10 @@ public class ManageCoursesView extends JPanel {
 
         public CourseItemPanel(Course course, String semester, List<String> enrolledSectionIds) {
             setLayout(new BorderLayout());
-            setBackground(Color.WHITE);
+            setBackground(StyleConstants.WHITE);
 
             setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(0, 0, 2, 0, new Color(240, 240, 240)),
+                    BorderFactory.createMatteBorder(0, 0, 2, 0, StyleConstants.DIM_WHITE),
                     new EmptyBorder(10, 15, 10, 15)
             ));
 
@@ -298,7 +295,7 @@ public class ManageCoursesView extends JPanel {
             setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
             setOpaque(false);
             setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(240, 240, 240)),
+                    BorderFactory.createMatteBorder(0, 0, 1, 0, StyleConstants.DIM_WHITE),
                     new EmptyBorder(5, 10, 5, 10)
             ));
             setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -344,27 +341,26 @@ public class ManageCoursesView extends JPanel {
 
             StyledButton actionBtn;
 
-            // 1. Enrolled in THIS section -> DROP (Always takes priority)
-            if (isThisTheEnrolledSection) {
-                actionBtn = new StyledButton("Drop", StyleConstants.RED);
-                actionBtn.addActionListener(e -> handleDrop(section.getId()));
-            }
-            // 2. Enrolled in SIBLING section -> ENROLL (Disabled)
-            else if (hasOtherEnrollmentInCourse) {
-                actionBtn = new StyledButton("Enroll", StyleConstants.DISABLED_COLOR);
+            if (isMaintenance) {
+                actionBtn = new StyledButton(isThisTheEnrolledSection ? "Drop" : "Enroll", StyleConstants.DISABLED_COLOR);
                 actionBtn.setEnabled(false);
-                actionBtn.setToolTipText("Enrolled in another section.");
-            }
-            // 3. Section is FULL -> FULL (Disabled)
-            else if (isFull) {
-                actionBtn = new StyledButton("Full", StyleConstants.DISABLED_COLOR);
-                actionBtn.setEnabled(false);
-                actionBtn.setToolTipText("Section is at maximum capacity.");
-            }
-            // 4. Available -> ENROLL (Enabled)
-            else {
-                actionBtn = new StyledButton("Enroll", StyleConstants.GREEN);
-                actionBtn.addActionListener(e -> handleEnroll(section.getId()));
+                actionBtn.setToolTipText("System is in Maintenance Mode. Changes Disabled.");
+            } else {
+                if (isThisTheEnrolledSection) {
+                    actionBtn = new StyledButton("Drop", StyleConstants.RED);
+                    actionBtn.addActionListener(e -> handleDrop(section.getId()));
+                } else if (hasOtherEnrollmentInCourse) {
+                    actionBtn = new StyledButton("Enroll", StyleConstants.DISABLED_COLOR);
+                    actionBtn.setEnabled(false);
+                    actionBtn.setToolTipText("Enrolled in another section.");
+                } else if (isFull) {
+                    actionBtn = new StyledButton("Full", StyleConstants.DISABLED_COLOR);
+                    actionBtn.setEnabled(false);
+                    actionBtn.setToolTipText("Section is at maximum capacity.");
+                } else {
+                    actionBtn = new StyledButton("Enroll", StyleConstants.GREEN);
+                    actionBtn.addActionListener(e -> handleEnroll(section.getId()));
+                }
             }
 
             actionBtn.setPreferredSize(new Dimension(80, 30));
@@ -393,7 +389,7 @@ public class ManageCoursesView extends JPanel {
         private JPanel createPolicyPanel(Section section) {
             JPanel p = new JPanel();
             p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-            p.setBackground(new Color(250, 250, 250));
+            p.setBackground(StyleConstants.DIM_WHITE);
             p.setBorder(new EmptyBorder(10, 10, 10, 10));
 
             JPanel weights = new JPanel(new GridLayout(2, 4, 5, 5));

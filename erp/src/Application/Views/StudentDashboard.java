@@ -4,9 +4,12 @@ import Application.Components.StyleConstants;
 import Application.Components.StyledButton;
 import Application.Views.StudentViews.*;
 import Domain.Concretes.Student;
+import Domain.Rules.ApplicationRules;
 
 import javax.swing.*;
+import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.MatteBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -20,9 +23,13 @@ public class StudentDashboard extends JFrame {
     private JPanel contentArea;
     private String currentSemester;
 
+    private TimetableView timetableView;
+    private boolean isMaintenance;
+
     public StudentDashboard(Student student) {
         this.student = student;
         this.currentSemester = calculateSemester(student.getEnrollmentDate());
+        this.isMaintenance = ApplicationRules.isMaintenanceMode();
 
         setTitle("Student Dashboard - " + student.getName());
         setSize(1200, 800);
@@ -35,9 +42,11 @@ public class StudentDashboard extends JFrame {
         contentArea = new JPanel(new CardLayout());
         contentArea.setBackground(StyleConstants.WHITE);
 
+        timetableView = new TimetableView(student, currentSemester);
+
         contentArea.add(new MyCoursesView(student, currentSemester), "MY_COURSES");
-        contentArea.add(new ManageCoursesView(student, currentSemester), "MANAGE");
-        contentArea.add(new TimetableView(student, currentSemester), "TIMETABLE");
+        contentArea.add(new ManageCoursesView(student, currentSemester, isMaintenance), "MANAGE");
+        contentArea.add(timetableView, "TIMETABLE");
 
         add(contentArea, BorderLayout.CENTER);
     }
@@ -47,9 +56,30 @@ public class StudentDashboard extends JFrame {
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setBackground(StyleConstants.WHITE);
         sidebar.setPreferredSize(new Dimension(250, 0));
-        sidebar.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(230, 230, 230)));
+        sidebar.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, StyleConstants.DIM_WHITE));
 
         sidebar.add(createProfilePanel());
+
+
+        if (isMaintenance) {
+            JPanel warningPanel = new JPanel(new BorderLayout());
+            warningPanel.setBackground(StyleConstants.YELLOW);
+            warningPanel.setBorder(new CompoundBorder(
+                    new MatteBorder(0, 4, 0, 0, StyleConstants.WARN),
+                    new EmptyBorder(10, 15, 10, 15)
+            ));
+
+            warningPanel.setMaximumSize(new Dimension(250, 60));
+            warningPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            JLabel warnIcon = new JLabel("<html><b>Maintenance Mode</b><br><span style='font-size:10px; " +
+                    "color:#555'>Changes are disabled.</span></html>");
+            warnIcon.setForeground(StyleConstants.BLACK);
+
+            warningPanel.add(warnIcon, BorderLayout.CENTER);
+            sidebar.add(warningPanel);
+        }
+
         sidebar.add(new JSeparator());
         sidebar.add(createNavigationPanel());
         sidebar.add(Box.createVerticalGlue());
@@ -63,11 +93,8 @@ public class StudentDashboard extends JFrame {
         profilePanel.setBackground(StyleConstants.WHITE);
         profilePanel.setBorder(new EmptyBorder(20, 15, 20, 15));
         profilePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        // Adjusted height to fit more information
         profilePanel.setMaximumSize(new Dimension(250, 200));
 
-        // Using HTML for multiline styling within a JLabel
         String htmlInfo = "<html>" +
                 "<b style='font-size:16px; color:#2c3e50'>" + student.getName() + "</b><br>" +
                 "<div style='margin-top: 8px; font-size:11px; color:#7f8c8d'>" +
@@ -98,12 +125,12 @@ public class StudentDashboard extends JFrame {
 
         return navPanel;
     }
+
     private JPanel createLogoutPanel() {
         JPanel logoutPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         logoutPanel.setBackground(StyleConstants.WHITE);
         logoutPanel.setBorder(new EmptyBorder(0, 15, 20, 15));
         logoutPanel.setMaximumSize(new Dimension(250, 70));
-
         logoutPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         StyledButton logoutBtn = new StyledButton("Logout", StyleConstants.RED);
@@ -126,7 +153,6 @@ public class StudentDashboard extends JFrame {
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                     g2.setColor(StyleConstants.ACCENT_COLOR_ALPHA);
                     g2.fillRect(0, 0, getWidth(), getHeight());
-
                     g2.setColor(StyleConstants.ACCENT_COLOR);
                     g2.fillRect(0, 0, 4, getHeight());
                 }
@@ -137,31 +163,28 @@ public class StudentDashboard extends JFrame {
         btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btn.setForeground(StyleConstants.BLACK);
         btn.setBackground(StyleConstants.WHITE);
-
         btn.setBorder(new EmptyBorder(12, 25, 12, 10));
-
         btn.setFocusPainted(false);
         btn.setContentAreaFilled(false);
         btn.setOpaque(false);
         btn.setHorizontalAlignment(SwingConstants.LEFT);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
         btn.setMaximumSize(new Dimension(250, 50));
         btn.setPreferredSize(new Dimension(250, 50));
         btn.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         btn.addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseEntered(MouseEvent e) {
-                btn.setForeground(StyleConstants.WHITE);
-            }
+            public void mouseEntered(MouseEvent e) { btn.setForeground(StyleConstants.WHITE); }
             @Override
-            public void mouseExited(MouseEvent e) {
-                btn.setForeground(StyleConstants.BLACK);
-            }
+            public void mouseExited(MouseEvent e) { btn.setForeground(StyleConstants.BLACK); }
         });
 
         btn.addActionListener(e -> {
+            if (cardName.equals("TIMETABLE")) {
+                timetableView.refresh();
+            }
+
             CardLayout cl = (CardLayout) contentArea.getLayout();
             cl.show(contentArea, cardName);
         });

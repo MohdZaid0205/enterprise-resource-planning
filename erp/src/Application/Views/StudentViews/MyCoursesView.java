@@ -64,22 +64,21 @@ public class MyCoursesView extends JPanel {
         colModel.getColumn(1).setMinWidth(200);
 
         for (int i = 2; i < 10; i++) {
-            colModel.getColumn(i).setPreferredWidth(50);
-            colModel.getColumn(i).setMaxWidth(60);
+            colModel.getColumn(i).setPreferredWidth(70);
+            colModel.getColumn(i).setMaxWidth(80);
+            colModel.getColumn(i).setMinWidth(60);
         }
 
         detailTable.setEnabled(false);
 
         JScrollPane detailScroll = new JScrollPane(detailTable);
         detailScroll.setBorder(BorderFactory.createEmptyBorder());
-        detailScroll.getViewport().setBackground(Color.WHITE);
+        detailScroll.getViewport().setBackground(StyleConstants.WHITE);
         detailScroll.setPreferredSize(new Dimension(0, 300));
 
         topPanel.add(detailHeader, BorderLayout.NORTH);
         topPanel.add(detailScroll, BorderLayout.CENTER);
 
-        // i would like to split this pane or just create new pane for expanded
-        // course view to show grading policy and marks distribution [TODO]
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.setOpaque(false);
         bottomPanel.setBorder(new EmptyBorder(20, 0, 0, 0));
@@ -99,7 +98,7 @@ public class MyCoursesView extends JPanel {
 
         JScrollPane semScroll = new JScrollPane(semTable);
         semScroll.setBorder(BorderFactory.createEmptyBorder());
-        semScroll.getViewport().setBackground(Color.WHITE);
+        semScroll.getViewport().setBackground(StyleConstants.WHITE);
 
         semTable.addMouseListener(new MouseAdapter() {
             @Override
@@ -117,7 +116,7 @@ public class MyCoursesView extends JPanel {
         bottomPanel.add(semScroll, BorderLayout.CENTER);
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
-                                                    topPanel, bottomPanel);
+                topPanel, bottomPanel);
         splitPane.setDividerLocation(300);
         splitPane.setResizeWeight(0.5);
         splitPane.setOpaque(false);
@@ -167,8 +166,8 @@ public class MyCoursesView extends JPanel {
         }
     }
     private void loadDetailedSubjectData(String semester) {
-        detailModel.setRowCount(0); // Clear placeholder/previous data
-        detailTable.setEnabled(true); // Enable table interaction
+        detailModel.setRowCount(0);
+        detailTable.setEnabled(true);
 
         List<String> sectionIds = getSectionIdsForSemester(semester);
 

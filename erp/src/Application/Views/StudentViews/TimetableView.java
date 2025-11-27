@@ -1,16 +1,22 @@
 package Application.Views.StudentViews;
 
 import Application.Components.StyleConstants;
-import Application.Components.StyledComboBox; // Import added
+import Application.Components.StyledComboBox;
 import Domain.Concretes.Course;
 import Domain.Concretes.Section;
 import Domain.Concretes.Student;
+import Domain.Database.sqliteConnector;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
 import java.awt.*;
-import java.awt.event.ItemEvent; // Import added
+import java.awt.event.ItemEvent;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,9 +24,9 @@ import java.util.Map;
 public class TimetableView extends JPanel {
 
     private final Student student;
-    private String currentSemester; // Removed final to allow updates
+    private String currentSemester;
     private final JPanel scheduleGrid;
-    private final StyledComboBox<String> semesterCombo; // Added dropdown
+    private final StyledComboBox<String> semesterCombo;
 
     private static final int START_HOUR = 8;
     private static final int END_HOUR = 18;
@@ -42,7 +48,6 @@ public class TimetableView extends JPanel {
         title.setFont(StyleConstants.HEADER_FONT);
         title.setForeground(StyleConstants.WHITE);
 
-        // --- Semester Selector Logic ---
         JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         controlPanel.setOpaque(false);
 
@@ -50,13 +55,18 @@ public class TimetableView extends JPanel {
         semLabel.setFont(StyleConstants.NORMAL_FONT);
         semLabel.setForeground(new Color(200, 200, 255));
 
-        String[] sems = {"Fall 2025", "Spring 2025"};
+        String[] sems = getAllSemesters();
         semesterCombo = new StyledComboBox<>(sems);
         semesterCombo.setPreferredSize(new Dimension(150, 35));
 
-        // Set initial selection based on passed semester (simple logic)
-        if(currentSemester.toUpperCase().contains("SPRING")) semesterCombo.setSelectedItem("Spring 2025");
-        else semesterCombo.setSelectedItem("Fall 2025");
+        boolean found = false;
+        for (int i = 0; i < sems.length; i++) {
+            if (sems[i].equalsIgnoreCase(currentSemester)) {
+                semesterCombo.setSelectedIndex(i);
+                found = true;
+                break;
+            }
+        }
 
         semesterCombo.addItemListener(e -> {
             if(e.getStateChange() == ItemEvent.SELECTED) {
@@ -83,10 +93,9 @@ public class TimetableView extends JPanel {
     }
 
     public void refresh() {
-        // Update current semester based on selection
         String selected = (String) semesterCombo.getSelectedItem();
         if(selected != null) {
-            this.currentSemester = selected.toUpperCase().replace(" ", "_");
+            this.currentSemester = selected;
         }
 
         scheduleGrid.removeAll();
@@ -152,7 +161,6 @@ public class TimetableView extends JPanel {
     }
 
     private void loadData() {
-        // Use the updated currentSemester for fetching data
         Map<String, List<Section.TimeSlot>> schedule = student.getWeeklySchedule(currentSemester);
         Map<String, String> courseNameCache = new HashMap<>();
 
@@ -221,5 +229,28 @@ public class TimetableView extends JPanel {
 
         scheduleGrid.add(block, gbc);
         scheduleGrid.setComponentZOrder(block, 0);
+    }
+
+
+    private String[] getAllSemesters() {
+        List<String> sems = new ArrayList<>();
+        String sql = "SELECT DISTINCT semester FROM enrollments WHERE student_id = ?";
+
+        try (Connection conn = sqliteConnector.connect("jdbc:sqlite:erp.db");
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, student.getId());
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                sems.add(rs.getString("semester"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        if (sems.isEmpty()) {
+            sems.add(currentSemester);
+        }
+
+        return sems.toArray(new String[0]);
     }
 }

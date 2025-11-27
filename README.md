@@ -114,4 +114,15 @@ The Admin Dashboard includes dedicated buttons in the sidebar for database manag
 # About Domain
 
 following is diagram of domain of this project.
-![domain_diagram.svg](domain_diagram.svg)
+![domain_diagram.svg](diagrams/domain_diagram.svg)
+
+Use Cases of this Project (as mentioned in What to submit).
+
+* Overall Use Case Model
+![use-case-4.svg](diagrams/use-case-4.svg)
+
+* Specific use cases
+![use-case-1.svg](diagrams/use-case-1.svg)
+![use-case-2.svg](diagrams/use-case-2.svg)
+![use-case-3.svg](diagrams/use-case-3.svg)
+![use-case-5.svg](diagrams/use-case-5.svg)

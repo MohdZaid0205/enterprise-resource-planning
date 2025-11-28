@@ -46,18 +46,16 @@ A comprehensive University Enterprise Resource Planning (ERP) system built with 
 
 ## How to Run
 
-1.  **Locate the Main File:** Open `src/PopulateData.java`.
-2.  **Populate Database:**
-    * Run `PopulateData.java` **once**.
-    * This script creates the database files (`erp.db`, `credentials.db`, etc.) and populates them with sample data (50 students, 5 instructors, courses, sections, and grades).
-    * *Note: If you want to reset the system, simply delete all `.db` files in the project root and run `PopulateData.java` again.*
-3.  **Launch Application:**
+1.  **Populate Database:**
+    * Database has been created with predefined entries and uploaded with this project.
+    * If database is not loaded login as an admin id: ADMIN pass:123 and click on load DB.
+2.  **Launch Application:**
     * Open `src/Main.java` (or create one that launches `new LoginView().setVisible(true)`).
     * Run the application.
 
 ## Default Credentials
 
-The `PopulateData.java` script creates the following default users. All passwords default to **`123`**.
+The `erp.db` contains the following default users. All passwords default to **`123`**.
 
 | Role | User ID | Password | Notes |
 | :--- | :--- | :--- | :--- |
